@@ -1,0 +1,23 @@
+services:
+  # PostgreSQL database service
+  postgres:
+    image: postgres:16-alpine
+    container_name: htech_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${DATABASE_USER:-postgres}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD:-postgres}
+      - POSTGRES_DB=${DATABASE_NAME:-htech_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - htech-network
+
+networks:
+  htech-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
