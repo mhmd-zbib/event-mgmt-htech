@@ -1,24 +1,18 @@
 const Event = require('../models/event.model');
 const User = require('../models/user.model');
 const Category = require('../models/category.model');
+const Tag = require('../models/tag.model');
 const { 
   NotFoundError, 
   BadRequestError,
   ForbiddenError
 } = require('../errors/HttpErrors');
-const { processPaginationParams, createPaginationMeta } = require('../utils/pagination');
+const { processPaginationParams, createPaginationMeta, paginatedQuery } = require('../utils/pagination');
 const { isValidUUID, isValidDate, isValidDateRange } = require('../utils/validation');
 const { Op } = require('sequelize');
 
 class EventService {
   async getAllEvents(queryParams = {}) {
-    const allowedSortFields = ['title', 'createdAt', 'startDate', 'endDate', 'location'];
-    const paginationOptions = processPaginationParams(
-      queryParams,
-      allowedSortFields,
-      'createdAt'
-    );
-    
     const where = {};
     
     if (queryParams.fromDate && isValidDate(queryParams.fromDate)) {
@@ -40,7 +34,16 @@ class EventService {
       where.categoryId = queryParams.categoryId;
     }
     
-    const { count, rows: events } = await Event.findAndCountAll({
+    // Add tag filter if provided
+    let tagFilter = null;
+    if (queryParams.tagId && isValidUUID(queryParams.tagId)) {
+      tagFilter = queryParams.tagId;
+    }
+    
+    return paginatedQuery(Event, {
+      queryParams,
+      allowedSortFields: ['title', 'createdAt', 'startDate', 'endDate', 'location'],
+      defaultSortField: 'createdAt',
       where,
       include: [
         {
@@ -52,19 +55,17 @@ class EventService {
           model: Category,
           as: 'category',
           attributes: ['id', 'name', 'description']
+        },
+        {
+          model: Tag,
+          as: 'tags',
+          through: { attributes: [] }, // Exclude junction table attributes
+          where: tagFilter ? { id: tagFilter } : undefined,
+          required: tagFilter ? true : false
         }
       ],
-      limit: paginationOptions.limit,
-      offset: paginationOptions.offset,
-      order: [[paginationOptions.sortBy, paginationOptions.sortOrder]]
+      resultKey: 'events'
     });
-    
-    const meta = createPaginationMeta(count, paginationOptions);
-    
-    return {
-      events,
-      ...meta
-    };
   }
 
   validateEventDates(startDate, endDate) {
@@ -102,6 +103,11 @@ class EventService {
           model: Category,
           as: 'category',
           attributes: ['id', 'name', 'description']
+        },
+        {
+          model: Tag,
+          as: 'tags',
+          through: { attributes: [] } // Exclude junction table attributes
         }
       ]
     });
@@ -128,17 +134,45 @@ class EventService {
       }
     }
 
+    // Extract tags from event data before creating the event
+    const { tags, ...eventDataWithoutTags } = eventData;
+    
+    // Create event
     const event = await Event.create({
-      ...eventData,
+      ...eventDataWithoutTags,
       createdBy: adminId
     });
     
-    // If we need to return the full event with associations immediately
-    if (event) {
-      return this.getEventById(event.id);
+    // Add tags if provided
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+      // Validate tagIds
+      for (const tagId of tags) {
+        if (!isValidUUID(tagId)) {
+          throw new BadRequestError(`Invalid tag ID format: ${tagId}`);
+        }
+      }
+      
+      // Check if all tags exist
+      const existingTags = await Tag.findAll({
+        where: {
+          id: {
+            [Op.in]: tags
+          }
+        }
+      });
+      
+      if (existingTags.length !== tags.length) {
+        const foundIds = existingTags.map(tag => tag.id);
+        const missingIds = tags.filter(id => !foundIds.includes(id));
+        throw new NotFoundError(`The following tags do not exist: ${missingIds.join(', ')}`);
+      }
+      
+      // Associate tags with the event
+      await event.addTags(existingTags);
     }
     
-    return event;
+    // Return the event with all associations
+    return this.getEventById(event.id);
   }
 
   async updateEvent(eventId, eventData, adminId) {
@@ -179,8 +213,70 @@ class EventService {
         throw new BadRequestError('The specified category does not exist.');
       }
     }
+    
+    // Extract tags from event data before updating the event
+    const { tags, ...eventDataWithoutTags } = eventData;
 
-    await event.update(eventData);
+    await event.update(eventDataWithoutTags);
+    
+    // Update tags if provided
+    if (tags && Array.isArray(tags)) {
+      // Validate tagIds
+      for (const tagId of tags) {
+        if (!isValidUUID(tagId)) {
+          throw new BadRequestError(`Invalid tag ID format: ${tagId}`);
+        }
+      }
+      
+      // Check if all tags exist
+      const existingTags = await Tag.findAll({
+        where: {
+          id: {
+            [Op.in]: tags
+          }
+        }
+      });
+      
+      if (existingTags.length !== tags.length) {
+        const foundIds = existingTags.map(tag => tag.id);
+        const missingIds = tags.filter(id => !foundIds.includes(id));
+        throw new NotFoundError(`The following tags do not exist: ${missingIds.join(', ')}`);
+      }
+      
+      // Replace existing tags with the new set
+      await event.setTags(existingTags);
+    }
+    
+    // Get the updated event with all associations
+    return this.getEventById(eventId);
+  }
+
+  async setEventCategory(eventId, categoryId, adminId) {
+    // Validate input
+    if (!isValidUUID(eventId)) {
+      throw new BadRequestError('Invalid event ID format. Must be a valid UUID.');
+    }
+    
+    if (!isValidUUID(categoryId)) {
+      throw new BadRequestError('Invalid category ID format. Must be a valid UUID.');
+    }
+    
+    // Get the event and check if it exists
+    const event = await this.getEventById(eventId);
+    
+    // Check if user has permission to update the event
+    if (event.createdBy !== adminId) {
+      throw new ForbiddenError('You can only update events you created');
+    }
+    
+    // Check if the category exists
+    const categoryExists = await Category.findByPk(categoryId);
+    if (!categoryExists) {
+      throw new BadRequestError('The specified category does not exist.');
+    }
+    
+    // Update the event's category
+    await event.update({ categoryId });
     
     // Get the updated event with all associations
     return this.getEventById(eventId);

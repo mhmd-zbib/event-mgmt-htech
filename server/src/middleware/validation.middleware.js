@@ -1,36 +1,28 @@
 const { ValidationError } = require('../errors/HttpErrors');
 
+/**
+ * Validation middleware
+ * Validates request data against a schema
+ * @param {Object} schema - Zod schema for validation
+ * @param {string} source - Data source to validate ('body', 'query', 'params', or 'all')
+ * @returns {Function} Express middleware
+ */
 const validationMiddleware = (schema, source = 'body') => (req, res, next) => {
   try {
-    let dataToValidate;
-    let validatedData;
-    
     switch (source) {
       case 'body':
-        dataToValidate = req.body;
-        validatedData = schema.parse(dataToValidate);
-        req.validatedData = validatedData;
+        req.validatedData = schema.parse(req.body);
         break;
       case 'query':
-        dataToValidate = req.query;
-        validatedData = schema.parse(dataToValidate);
-        req.validatedQuery = validatedData;
+        req.validatedQuery = schema.parse(req.query);
         break;
       case 'params':
-        dataToValidate = req.params;
-        validatedData = schema.parse(dataToValidate);
-        req.validatedParams = validatedData;
+        req.validatedParams = schema.parse(req.params);
         break;
       case 'all':
-        if (schema.body) {
-          req.validatedData = schema.body.parse(req.body);
-        }
-        if (schema.query) {
-          req.validatedQuery = schema.query.parse(req.query);
-        }
-        if (schema.params) {
-          req.validatedParams = schema.params.parse(req.params);
-        }
+        if (schema.body) req.validatedData = schema.body.parse(req.body);
+        if (schema.query) req.validatedQuery = schema.query.parse(req.query);
+        if (schema.params) req.validatedParams = schema.params.parse(req.params);
         break;
       default:
         throw new Error(`Invalid validation source: ${source}`);

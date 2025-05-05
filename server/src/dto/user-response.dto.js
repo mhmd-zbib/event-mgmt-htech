@@ -35,6 +35,7 @@ const createUserListResponseDto = (users, pagination, sort) => {
  * @returns {Object} Formatted user profile response
  */
 const createUserProfileResponseDto = (user) => {
+  // Using formatItemResponse which now returns the item directly
   return formatItemResponse({
     id: user.id,
     email: user.email,
@@ -43,7 +44,7 @@ const createUserProfileResponseDto = (user) => {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     lastLogin: user.lastLogin
-  }, 'user');
+  });
 };
 
 module.exports = {

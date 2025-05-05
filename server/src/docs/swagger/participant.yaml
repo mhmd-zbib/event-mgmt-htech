@@ -375,6 +375,62 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /api/participants:
+    get:
+      tags:
+        - Participants
+      summary: Get current user's participating events
+      description: Retrieve a list of events the current authenticated user is participating in
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [registrationDate, createdAt]
+            default: registrationDate
+          description: Field to sort by
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [ASC, DESC, asc, desc]
+            default: DESC
+          description: Sort order (ascending or descending)
+      responses:
+        '200':
+          description: List of events the user is participating in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  participations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ParticipationWithEvent'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  sort:
+                    $ref: '#/components/schemas/Sort'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 components:
   schemas:
     Participant:

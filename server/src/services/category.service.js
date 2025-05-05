@@ -7,19 +7,15 @@ const {
   ForbiddenError,
   ConflictError
 } = require('../errors/HttpErrors');
-const { processPaginationParams, createPaginationMeta } = require('../utils/pagination');
+const { processPaginationParams, createPaginationMeta, paginatedQuery } = require('../utils/pagination');
 const { isValidUUID } = require('../utils/validation');
 
 class CategoryService {
   async getAllCategories(queryParams = {}) {
-    const allowedSortFields = ['name', 'createdAt'];
-    const paginationOptions = processPaginationParams(
+    return paginatedQuery(Category, {
       queryParams,
-      allowedSortFields,
-      'name'
-    );
-    
-    const { count, rows: categories } = await Category.findAndCountAll({
+      allowedSortFields: ['name', 'createdAt'],
+      defaultSortField: 'name',
       include: [
         {
           model: User,
@@ -27,17 +23,8 @@ class CategoryService {
           attributes: ['id', 'email', 'firstName', 'lastName']
         }
       ],
-      limit: paginationOptions.limit,
-      offset: paginationOptions.offset,
-      order: [[paginationOptions.sortBy, paginationOptions.sortOrder]]
+      resultKey: 'categories'
     });
-    
-    const meta = createPaginationMeta(count, paginationOptions);
-    
-    return {
-      categories,
-      ...meta
-    };
   }
 
   async getCategoryById(categoryId) {
@@ -127,14 +114,10 @@ class CategoryService {
   async getEventsByCategoryId(categoryId, queryParams = {}) {
     await this.getCategoryById(categoryId); // Verify category exists
     
-    const allowedSortFields = ['title', 'createdAt', 'startDate', 'endDate', 'location'];
-    const paginationOptions = processPaginationParams(
+    return paginatedQuery(Event, {
       queryParams,
-      allowedSortFields,
-      'startDate'
-    );
-    
-    const { count, rows: events } = await Event.findAndCountAll({
+      allowedSortFields: ['title', 'createdAt', 'startDate', 'endDate', 'location'],
+      defaultSortField: 'startDate',
       where: { categoryId },
       include: [
         {
@@ -147,17 +130,8 @@ class CategoryService {
           as: 'category'
         }
       ],
-      limit: paginationOptions.limit,
-      offset: paginationOptions.offset,
-      order: [[paginationOptions.sortBy, paginationOptions.sortOrder]]
+      resultKey: 'events'
     });
-    
-    const meta = createPaginationMeta(count, paginationOptions);
-    
-    return {
-      events,
-      ...meta
-    };
   }
 }
 

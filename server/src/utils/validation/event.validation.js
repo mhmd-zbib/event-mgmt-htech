@@ -45,7 +45,12 @@ const eventSchema = {
       location: eventFields.location,
       startDate: eventFields.startDate,
       endDate: eventFields.endDate,
-      categoryId: eventFields.categoryId
+      categoryId: eventFields.categoryId,
+      tags: z.array(z.string()
+        .refine(val => isValidUUID(val), {
+          message: 'Tag IDs must be valid UUIDs'
+        })
+      ).optional()
     })
   ),
 
@@ -56,9 +61,21 @@ const eventSchema = {
       location: eventFields.location,
       startDate: eventFields.startDate.optional(),
       endDate: eventFields.endDate.optional(),
-      categoryId: eventFields.categoryId
+      categoryId: eventFields.categoryId,
+      tags: z.array(z.string()
+        .refine(val => isValidUUID(val), {
+          message: 'Tag IDs must be valid UUIDs'
+        })
+      ).optional()
     })
   ),
+  
+  updateCategory: z.object({
+    categoryId: z.string()
+      .refine(val => isValidUUID(val), {
+        message: 'Category ID must be a valid UUID'
+      })
+  }),
   
   query: z.object({
     page: z.string().regex(/^\d+$/, 'Page must be a number').optional(),
@@ -82,6 +99,11 @@ const eventSchema = {
     categoryId: z.string()
       .refine(val => !val || isValidUUID(val), {
         message: 'Category ID must be a valid UUID'
+      })
+      .optional(),
+    tagId: z.string()
+      .refine(val => !val || isValidUUID(val), {
+        message: 'Tag ID must be a valid UUID'
       })
       .optional()
   }).refine(

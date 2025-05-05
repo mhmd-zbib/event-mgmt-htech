@@ -32,6 +32,8 @@ tags:
     description: Category operations
   - name: Participants
     description: Event participation operations
+  - name: Tags
+    description: Tag operations for events
 
 components:
   securitySchemes:

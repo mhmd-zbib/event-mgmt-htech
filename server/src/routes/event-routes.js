@@ -1,8 +1,10 @@
 const router = require('express').Router();
 const eventController = require('../controllers/event.controller');
+const tagController = require('../controllers/tag.controller');
 const authMiddleware = require('../middleware/auth.middleware');
 const authorize = require('../middleware/authorize.middleware');
 const eventSchema = require('../utils/validation/event.validation');
+const tagSchema = require('../utils/validation/tag.validation');
 const validationMiddleware = require('../middleware/validation.middleware');
 
 router.use(authMiddleware());
@@ -14,12 +16,28 @@ router.get('/',
 
 router.get('/:id', eventController.getEventById);
 
-router.use(authorize('admin'));
+// Event tags routes
+router.get('/:eventId/tags', tagController.getEventTags);
 
-router.post('/', validationMiddleware(eventSchema.create), eventController.createEvent);
+// Apply admin authorization only to specific routes that need it
+router.post('/', authorize('admin'), validationMiddleware(eventSchema.create), eventController.createEvent);
 
-router.put('/:id', validationMiddleware(eventSchema.update), eventController.updateEvent);
+// Event category routes using the relationship approach
+router.patch('/:eventId/categories/:categoryId', authorize('admin'), eventController.setEventCategory);
 
-router.delete('/:id', eventController.deleteEvent);
+router.put('/:id', authorize('admin'), validationMiddleware(eventSchema.update), eventController.updateEvent);
+
+// Admin-only routes for managing event tags
+router.post('/:eventId/tags', 
+  authorize('admin'), 
+  validationMiddleware(tagSchema.eventTags), 
+  tagController.addTagsToEvent
+);
+
+router.delete('/:eventId/tags', 
+  authorize('admin'), 
+  validationMiddleware(tagSchema.eventTags), 
+  tagController.removeTagsFromEvent
+);
 
 module.exports = router;

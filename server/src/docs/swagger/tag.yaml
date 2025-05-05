@@ -1,0 +1,555 @@
+openapi: 3.0.3
+info:
+  title: Tag API
+  version: 1.0.0
+  description: API endpoints for managing tags
+
+paths:
+  /api/tags:
+    get:
+      tags:
+        - Tags
+      summary: Get all tags
+      description: Retrieve a list of all tags with pagination
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [name, createdAt]
+            default: name
+          description: Field to sort by
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [ASC, DESC, asc, desc]
+            default: ASC
+          description: Sort order (ascending or descending)
+      responses:
+        '200':
+          description: List of tags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  sort:
+                    $ref: '#/components/schemas/Sort'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Tags
+      summary: Create a new tag
+      description: Create a new tag (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: "Technology"
+                  minLength: 2
+                  maxLength: 50
+                description:
+                  type: string
+                  example: "Technology-related events"
+      responses:
+        '201':
+          description: Tag created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tag:
+                    $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict - Tag with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/tags/{id}:
+    get:
+      tags:
+        - Tags
+      summary: Get tag by ID
+      description: Retrieve details of a specific tag
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the tag
+      responses:
+        '200':
+          description: Tag details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tag:
+                    $ref: '#/components/schemas/Tag'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Tags
+      summary: Update a tag
+      description: Update an existing tag (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the tag to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Updated Technology"
+                  minLength: 2
+                  maxLength: 50
+                description:
+                  type: string
+                  example: "Updated description for technology tag"
+      responses:
+        '200':
+          description: Tag updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tag:
+                    $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Conflict - Tag with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Tags
+      summary: Delete a tag
+      description: Delete an existing tag (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the tag to delete
+      responses:
+        '200':
+          description: Tag deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Tag deleted successfully
+        '400':
+          description: Bad Request - Tag is in use by events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/tags/{tagId}/events:
+    get:
+      tags:
+        - Tags
+        - Events
+      summary: Get events by tag
+      description: Retrieve a list of events with a specific tag
+      parameters:
+        - in: path
+          name: tagId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the tag
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [title, startDate, endDate, createdAt]
+            default: startDate
+          description: Field to sort by
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [ASC, DESC, asc, desc]
+            default: ASC
+          description: Sort order (ascending or descending)
+      responses:
+        '200':
+          description: List of events with the specified tag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  sort:
+                    $ref: '#/components/schemas/Sort'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/events/{eventId}/tags:
+    get:
+      tags:
+        - Tags
+        - Events
+      summary: Get event tags
+      description: Retrieve all tags associated with an event
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event
+      responses:
+        '200':
+          description: List of tags for the event
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Tags
+        - Events
+      summary: Add tags to event
+      description: Associate multiple tags with an event (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tagIds
+              properties:
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
+      responses:
+        '200':
+          description: Tags added to event successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tags added successfully"
+                  link:
+                    type: string
+                    example: "/api/events/123e4567-e89b-12d3-a456-426614174000"
+        '400':
+          description: Bad Request - Invalid tag IDs or format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required or not event creator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found - Event or tags not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Tags
+        - Events
+      summary: Remove tags from event
+      description: Remove tag associations from an event (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tagIds
+              properties:
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
+      responses:
+        '200':
+          description: Tags removed from event successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tags removed successfully"
+                  link:
+                    type: string
+                    example: "/api/events/123e4567-e89b-12d3-a456-426614174000"
+        '400':
+          description: Bad Request - Invalid tag IDs or format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required or not event creator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found - Event not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    Tag:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          example: "Technology"
+        description:
+          type: string
+          example: "Technology-related events"
+        createdBy:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        creator:
+          $ref: '#/components/schemas/UserBasic'
+    
+    EventWithTags:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        title:
+          type: string
+          example: "Tech Conference 2025"
+        description:
+          type: string
+          example: "Annual technology conference"
+        location:
+          type: string
+          example: "Convention Center, City"
+        startDate:
+          type: string
+          format: date-time
+          example: "2025-05-15T09:00:00Z"
+        endDate:
+          type: string
+          format: date-time
+          example: "2025-05-17T18:00:00Z"
+        categoryId:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174001"
+        createdBy:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174002"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        creator:
+          $ref: '#/components/schemas/UserBasic'
+        category:
+          $ref: '#/components/schemas/CategoryBasic'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'

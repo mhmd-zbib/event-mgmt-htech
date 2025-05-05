@@ -136,9 +136,10 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Event created successfully
-                  event:
-                    $ref: '#/components/schemas/Event'
+                    example: "Event created successfully"
+                  link:
+                    type: string
+                    example: "/api/events/f47ac10b-58cc-4372-a567-0e02b2c3d480"
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -282,6 +283,58 @@ paths:
                   message:
                     type: string
                     example: Event deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/events/{eventId}/categories/{categoryId}:
+    patch:
+      tags:
+        - Events
+      summary: Set a category for an event
+      description: Associate an event with a specific category (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the category to associate with the event
+      responses:
+        '200':
+          description: Event category set successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Category set successfully"
+                  link:
+                    type: string
+                    example: "/api/events/f47ac10b-58cc-4372-a456-426614174000"
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':

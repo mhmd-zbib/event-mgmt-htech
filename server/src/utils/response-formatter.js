@@ -9,9 +9,8 @@ const formatPaginatedResponse = (items, pagination, sort, mapFunction = null) =>
 };
 
 const formatItemResponse = (item, entityName = 'item') => {
-  const response = {};
-  response[entityName] = item;
-  return response;
+  // Return the item directly instead of nesting it
+  return item;
 };
 
 const formatMessageResponse = (message) => {

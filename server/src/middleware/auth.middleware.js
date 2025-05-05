@@ -2,6 +2,8 @@ const authService = require('../services/auth.service');
 const userService = require('../services/user.service');
 const { UnauthorizedError, NotFoundError } = require('../errors/HttpErrors');
 const logger = require('../utils/logger');
+const { log } = require('winston');
+
 
 module.exports = (options = {}) => async (req, res, next) => {
   try {
@@ -22,18 +24,6 @@ module.exports = (options = {}) => async (req, res, next) => {
     
     if (!user) {
       return next(new NotFoundError('User no longer exists'));
-    }
-    
-    if (options.roles && options.roles.length > 0 && !options.roles.includes(user.role)) {
-      logger.warn('Unauthorized role access attempt', {
-        userId: user.id,
-        userRole: user.role,
-        requiredRoles: options.roles,
-        path: req.path,
-        method: req.method,
-        requestId: req.id
-      });
-      return next(new UnauthorizedError('You do not have permission to access this resource'));
     }
     
     req.user = user;

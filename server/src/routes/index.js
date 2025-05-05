@@ -15,6 +15,8 @@ const router = require("express").Router();
  *     description: Category operations
  *   - name: Participants
  *     description: Event participation operations
+ *   - name: Tags
+ *     description: Tag operations for events
  *
  * components:
  *   securitySchemes:
@@ -30,6 +32,7 @@ const adminRoutes = require("./admin-routes");
 const eventRoutes = require("./event-routes");
 const categoryRoutes = require("./category-routes");
 const participantRoutes = require("./participant-routes");
+const tagRoutes = require("./tag-routes");
 
 /**
  * @swagger
@@ -84,6 +87,8 @@ router.use("/users", userRoutes);
 router.use("/admin", adminRoutes);
 router.use("/events", eventRoutes);
 router.use("/categories", categoryRoutes);
-router.use("/events", participantRoutes);
+router.use("/tags", tagRoutes);
+// Separate mounting path for participant routes to avoid conflict
+router.use("/", participantRoutes);
 
 module.exports = router;

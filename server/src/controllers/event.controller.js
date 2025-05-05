@@ -32,7 +32,11 @@ class EventController {
     
     const event = await eventService.createEvent(eventData, adminId);
     
-    const responseData = formatItemResponse(event, 'event');
+    // Return a message with a separate link field
+    const responseData = {
+      message: "Event created successfully",
+      link: `/api/events/${event.id}`
+    };
     
     res.status(201).json(responseData);
   }
@@ -49,14 +53,26 @@ class EventController {
     res.status(200).json(responseData);
   }
 
+  async setEventCategory(req, res, next) {
+    const { eventId, categoryId } = req.params;
+    const adminId = req.user.id;
+    
+    await eventService.setEventCategory(eventId, categoryId, adminId);
+    
+    // Return a message with a separate link field
+    const responseData = {
+      message: "Category set successfully",
+      link: `/api/events/${eventId}`
+    };
+    
+    res.status(200).json(responseData);
+  }
+
   async deleteEvent(req, res, next) {
     const { id } = req.params;
     const adminId = req.user.id;
-    
     await eventService.deleteEvent(id, adminId);
-    
-    const responseData = formatMessageResponse('Event deleted successfully');
-    
+    const responseData = formatMessageResponse('Event deleted successfully');  
     res.status(200).json(responseData);
   }
 }
