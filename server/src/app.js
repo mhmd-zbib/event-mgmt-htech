@@ -2,11 +2,13 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const { v4: uuidv4 } = require('uuid');
+const swaggerUi = require('swagger-ui-express');
 require('dotenv').config();
 
 const errorHandler = require('./middleware/error.middleware');
 const { NotFoundError } = require('./errors/HttpErrors');
 const logger = require('./utils/logger');
+const swaggerSpec = require('./config/swagger');
 
 const app = express();
 
@@ -22,6 +24,9 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Swagger UI setup
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Request logging middleware
 app.use((req, res, next) => {

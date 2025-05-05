@@ -1,7 +1,8 @@
 const User = require('../models/user.model');
 const { 
   NotFoundError, 
-  ConflictError
+  ConflictError,
+  BadRequestError
 } = require('../errors/HttpErrors');
 const handleDatabaseError = require('../errors/DatabaseError');
 
@@ -71,6 +72,39 @@ class UserService {
       // Let all other errors bubble up to the global handler
       throw error;
     }
+  }
+
+  // Admin-specific methods
+
+  async getAllUsers() {
+    // Fetch all users from database
+    return await User.findAll();
+  }
+
+  async updateUserRole(userId, role) {
+    // Validate role
+    if (!['user', 'admin'].includes(role)) {
+      throw new BadRequestError('Invalid role. Role must be either "user" or "admin"');
+    }
+
+    // Get user (this already throws NotFoundError if needed)
+    const user = await this.getUserById(userId);
+    
+    // Update the role
+    user.role = role;
+    await user.save();
+    
+    return user;
+  }
+
+  async deleteUser(userId) {
+    // Get user (this already throws NotFoundError if needed)
+    const user = await this.getUserById(userId);
+    
+    // Delete the user
+    await user.destroy();
+    
+    return true;
   }
 }
 
