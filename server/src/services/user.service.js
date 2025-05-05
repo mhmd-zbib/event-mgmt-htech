@@ -4,32 +4,25 @@ const {
   ConflictError,
   BadRequestError
 } = require('../errors/HttpErrors');
-const handleDatabaseError = require('../errors/DatabaseError');
+const { processPaginationParams, createPaginationMeta } = require('../utils/pagination');
+const { isValidUUID } = require('../utils/validation');
 
 class UserService {
   async createUser(userData) {
-    // Check for existing email
     const existingUser = await User.findOne({ where: { email: userData.email } });
     if (existingUser) {
       throw new ConflictError('Email already in use');
     }
 
-    try {
-      // Create the user - this might throw database errors
-      const user = await User.create(userData);
-      return user;
-    } catch (error) {
-      // Handle database-specific errors only
-      if (error.name && ['SequelizeValidationError', 'SequelizeUniqueConstraintError'].includes(error.name)) {
-        throw handleDatabaseError(error);
-      }
-      
-      // Let all other errors bubble up to the global handler
-      throw error;
-    }
+    const user = await User.create(userData);
+    return user;
   }
 
   async getUserById(userId) {
+    if (!isValidUUID(userId)) {
+      throw new BadRequestError('Invalid user ID format. Must be a valid UUID.');
+    }
+    
     const user = await User.findByPk(userId);
     if (!user) {
       throw new NotFoundError('User not found');
@@ -38,7 +31,6 @@ class UserService {
   }
 
   async getUserByEmail(email) {
-    // Simple database query, let any errors bubble up
     return await User.findOne({ where: { email } });
   }
 
@@ -48,10 +40,8 @@ class UserService {
   }
 
   async updateUser(userId, updateData) {
-    // Get user (this already throws NotFoundError if needed)
     const user = await this.getUserById(userId);
     
-    // Check for email conflicts
     if (updateData.email && updateData.email !== user.email) {
       const existingUser = await this.getUserByEmail(updateData.email);
       if (existingUser) {
@@ -59,38 +49,39 @@ class UserService {
       }
     }
     
-    try {
-      // Update the user - this might throw database errors
-      await user.update(updateData);
-      return user;
-    } catch (error) {
-      // Handle database-specific errors only
-      if (error.name && ['SequelizeValidationError', 'SequelizeUniqueConstraintError'].includes(error.name)) {
-        throw handleDatabaseError(error);
-      }
-      
-      // Let all other errors bubble up to the global handler
-      throw error;
-    }
+    await user.update(updateData);
+    return user;
   }
 
-  // Admin-specific methods
-
-  async getAllUsers() {
-    // Fetch all users from database
-    return await User.findAll();
+  async getAllUsers(queryParams = {}) {
+    const allowedSortFields = ['email', 'firstName', 'lastName', 'createdAt', 'role'];
+    const paginationOptions = processPaginationParams(
+      queryParams,
+      allowedSortFields,
+      'createdAt'
+    );
+    
+    const { count, rows: users } = await User.findAndCountAll({
+      limit: paginationOptions.limit,
+      offset: paginationOptions.offset,
+      order: [[paginationOptions.sortBy, paginationOptions.sortOrder]]
+    });
+    
+    const meta = createPaginationMeta(count, paginationOptions);
+    
+    return {
+      users,
+      ...meta
+    };
   }
 
   async updateUserRole(userId, role) {
-    // Validate role
     if (!['user', 'admin'].includes(role)) {
       throw new BadRequestError('Invalid role. Role must be either "user" or "admin"');
     }
 
-    // Get user (this already throws NotFoundError if needed)
     const user = await this.getUserById(userId);
     
-    // Update the role
     user.role = role;
     await user.save();
     
@@ -98,10 +89,8 @@ class UserService {
   }
 
   async deleteUser(userId) {
-    // Get user (this already throws NotFoundError if needed)
     const user = await this.getUserById(userId);
     
-    // Delete the user
     await user.destroy();
     
     return true;

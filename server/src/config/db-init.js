@@ -4,19 +4,17 @@ const config = require('./index');
 const logger = require('../utils/logger');
 const bcrypt = require('bcrypt');
 
-/**
- * Initialize an admin user if none exists
- * @returns {Promise<void>}
- */
 const initAdminUser = async () => {
   try {
-    // Check if an admin user already exists
     const adminExists = await User.findOne({ where: { role: 'admin' } });
     
     if (!adminExists) {
       logger.info('No admin user found. Creating default admin user...');
       
-      // Create default admin user with environment variables or fallback values
+      if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
+        logger.warn('Admin credentials not properly configured in environment variables. Using default values for development only.');
+      }
+      
       const adminUser = await User.create({
         email: process.env.ADMIN_EMAIL || 'admin@example.com',
         password: process.env.ADMIN_PASSWORD || 'Admin123!',
@@ -37,35 +35,82 @@ const initAdminUser = async () => {
         stack: error.stack
       }
     });
-    // Don't throw, just log - we don't want to prevent server startup
   }
 };
 
-/**
- * Initialize database connection and sync models
- * @returns {Promise<boolean>} - True if initialization is successful
- */
+const checkDatabaseRequirements = async () => {
+  try {
+    if (sequelize.options.dialect === 'postgres') {
+      const [results] = await sequelize.query("SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp'");
+      
+      if (results.length === 0) {
+        logger.warn('PostgreSQL uuid-ossp extension not found. UUID generation may not work correctly.');
+      } else {
+        logger.info('PostgreSQL uuid-ossp extension is available.');
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    logger.error('Failed to check database requirements:', {
+      error: {
+        message: error.message,
+        stack: error.stack
+      }
+    });
+    return true;
+  }
+};
+
+const waitForDatabase = async (maxRetries = 5, retryInterval = 5000) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await sequelize.authenticate();
+      logger.info(`Database connection established successfully on attempt ${attempt}.`);
+      return true;
+    } catch (error) {
+      logger.warn(`Database connection attempt ${attempt}/${maxRetries} failed:`, {
+        error: {
+          message: error.message
+        }
+      });
+      
+      if (attempt === maxRetries) {
+        logger.error('Max database connection attempts reached. Giving up.');
+        return false;
+      }
+      
+      logger.info(`Waiting ${retryInterval}ms before next attempt...`);
+      await new Promise(resolve => setTimeout(resolve, retryInterval));
+    }
+  }
+  
+  return false;
+};
+
 const initDatabase = async () => {
   try {
-    // Test database connection
-    const connected = await sequelize.testConnection();
-    if (!connected) {
-      logger.error('Failed to connect to the database.');
-      return false;
+    if (process.env.CONTAINERIZED === 'true') {
+      const connected = await waitForDatabase();
+      if (!connected) {
+        logger.error('Failed to connect to the database after multiple attempts.');
+        return false;
+      }
+    } else {
+      await sequelize.authenticate();
+      logger.info('Database connection has been established successfully.');
     }
 
-    // Sync models based on environment
+    await checkDatabaseRequirements();
+
     const syncOptions = {
-      // In production, we should never use force:true as it will drop tables
       force: false,
-      // Use alter in development for automatic migrations, but not in production
       alter: config.environment === 'development'
     };
 
     await sequelize.sync(syncOptions);
     logger.info(`Database models synchronized successfully (alter: ${syncOptions.alter}).`);
     
-    // Initialize admin user after database is synced
     await initAdminUser();
     
     return true;

@@ -1,10 +1,17 @@
-const { z } = require('zod');
-const userSchema = require('../utils/validation/user.validation');
+/**
+ * User Request DTOs
+ * Responsible for structuring user request data
+ */
 
-// Reuse the existing schema from validation
-exports.updateProfileSchema = userSchema.updateProfile;
-
-// Create DTO from validated data (now simplified since validation is done by Zod)
+/**
+ * Creates an Update Profile DTO from validated data
+ * @param {Object} validatedData - Validated profile data
+ * @returns {Object} Update Profile DTO
+ */
 exports.createUpdateProfileDto = (validatedData) => {
-  return validatedData;
+  return {
+    firstName: validatedData.firstName,
+    lastName: validatedData.lastName,
+    email: validatedData.email
+  };
 };

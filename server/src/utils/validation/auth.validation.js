@@ -23,6 +23,11 @@ const authSchema = {
       .email({ message: "Please enter a valid email address" }),
     password: z.string()
       .min(1, { message: "Password is required" })
+  }),
+  
+  refreshToken: z.object({
+    refreshToken: z.string()
+      .min(1, { message: "Refresh token is required" })
   })
 };
 

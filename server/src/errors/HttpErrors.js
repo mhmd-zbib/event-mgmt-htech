@@ -1,12 +1,10 @@
 const AppError = require('./AppError');
 
-
 class BadRequestError extends AppError {
   constructor(message = 'Bad Request', data = null) {
     super(message, 400, data);
   }
 }
-
 
 class UnauthorizedError extends AppError {
   constructor(message = 'Unauthorized', data = null) {
@@ -19,7 +17,6 @@ class ForbiddenError extends AppError {
     super(message, 403, data);
   }
 }
-
 
 class NotFoundError extends AppError {
   constructor(message = 'Resource not found', data = null) {
@@ -44,7 +41,6 @@ class InternalServerError extends AppError {
     super(message, 500, data);
   }
 }
-
 
 class ServiceUnavailableError extends AppError {
   constructor(message = 'Service Unavailable', data = null) {

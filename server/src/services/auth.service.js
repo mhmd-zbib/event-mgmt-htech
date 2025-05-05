@@ -1,13 +1,18 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const userService = require('./user.service');
-const { UnauthorizedError } = require('../errors/HttpErrors');
+const { UnauthorizedError, BadRequestError } = require('../errors/HttpErrors');
+const logger = require('../utils/logger');
 
 class AuthService {
   async register(userData) {
-    // User creation handles its own errors
     const user = await userService.createUser(userData);
     const token = this.generateToken(user);
+    
+    logger.info('User registered successfully', {
+      userId: user.id,
+      email: user.email
+    });
     
     return { user, token };
   }
@@ -15,23 +20,36 @@ class AuthService {
   async login(credentials) {
     const { email, password } = credentials;
 
-    // Find user by email
+    if (!email || !password) {
+      throw new BadRequestError('Email and password are required');
+    }
+
     const user = await userService.getUserByEmail(email);
     if (!user) {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    // Validate password
+    if (user.isActive === false) {
+      throw new UnauthorizedError('Account is deactivated. Please contact support.');
+    }
+
     const isValidPassword = await user.isValidPassword(password);
     if (!isValidPassword) {
+      logger.warn('Failed login attempt', {
+        email,
+        reason: 'Invalid password'
+      });
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    // Update last login time
     await userService.updateLastLogin(user);
     
-    // Generate token
     const token = this.generateToken(user);
+    
+    logger.info('User logged in', {
+      userId: user.id,
+      email: user.email
+    });
     
     return { user, token };
   }
@@ -39,7 +57,8 @@ class AuthService {
   generateToken(user) {
     const payload = {
       id: user.id,
-      email: user.email
+      email: user.email,
+      role: user.role
     };
 
     return jwt.sign(payload, config.jwt.secret, {
@@ -51,7 +70,24 @@ class AuthService {
     try {
       return jwt.verify(token, config.jwt.secret);
     } catch (error) {
-      throw new UnauthorizedError('Invalid or expired token');
+      if (error.name === 'TokenExpiredError') {
+        throw new UnauthorizedError('Token has expired');
+      }
+      throw new UnauthorizedError('Invalid token');
+    }
+  }
+
+  async refreshToken(refreshToken) {
+    try {
+      const decoded = this.verifyToken(refreshToken);
+      
+      const user = await userService.getUserById(decoded.id);
+      
+      const newToken = this.generateToken(user);
+      
+      return { user, token: newToken };
+    } catch (error) {
+      throw new UnauthorizedError('Invalid refresh token');
     }
   }
 }

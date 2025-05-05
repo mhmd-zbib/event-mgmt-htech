@@ -1,12 +1,7 @@
 const { Sequelize } = require('sequelize');
 const config = require('./index');
 
-/**
- * Create Sequelize instance based on configuration
- * @returns {Sequelize} - Configured Sequelize instance
- */
 const createSequelizeInstance = () => {
-  // If DATABASE_URL is provided, use it with parsed components
   if (config.db.url) {
     try {
       const dbUrl = new URL(config.db.url);
@@ -30,7 +25,6 @@ const createSequelizeInstance = () => {
     }
   }
 
-  // Fallback to individual config parameters or defaults
   return new Sequelize({
     dialect: 'postgres',
     host: config.db.host || 'localhost',
@@ -42,13 +36,8 @@ const createSequelizeInstance = () => {
   });
 };
 
-// Create the Sequelize instance
 const sequelize = createSequelizeInstance();
 
-/**
- * Test the database connection
- * @returns {Promise<boolean>} - True if connection is successful
- */
 const testConnection = async () => {
   try {
     await sequelize.authenticate();
@@ -60,7 +49,6 @@ const testConnection = async () => {
   }
 };
 
-// Test the connection if this file is run directly
 if (require.main === module) {
   testConnection()
     .then(success => process.exit(success ? 0 : 1));

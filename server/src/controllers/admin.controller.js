@@ -1,81 +1,50 @@
 const userService = require('../services/user.service');
 const userResponseDto = require('../dto/user-response.dto');
+const { formatPaginatedResponse, formatItemResponse, formatMessageResponse } = require('../utils/response-formatter');
 
 class AdminController {
   async getAllUsers(req, res, next) {
-    try {
-      // Get all users from service
-      const users = await userService.getAllUsers();
-      
-      // Create response DTO
-      const responseDto = {
-        message: 'Users retrieved successfully',
-        count: users.length,
-        users
-      };
-      
-      // Send successful response
-      res.status(200).json(responseDto);
-    } catch (err) {
-      next(err);
-    }
+    const result = await userService.getAllUsers(req.query);
+    
+    const responseData = formatPaginatedResponse(
+      result.users,
+      result.pagination,
+      result.sort,
+      userResponseDto.mapUserForList
+    );
+    
+    res.status(200).json(responseData);
   }
 
   async getUserById(req, res, next) {
-    try {
-      const { id } = req.params;
-      
-      // Get user by ID
-      const user = await userService.getUserById(id);
-      
-      // Create response DTO
-      const responseDto = userResponseDto.createUserProfileResponseDto(
-        'User retrieved successfully',
-        user
-      );
-      
-      // Send successful response
-      res.status(200).json(responseDto);
-    } catch (err) {
-      next(err);
-    }
+    const { id } = req.params;
+    
+    const user = await userService.getUserById(id);
+    
+    const responseData = formatItemResponse(user, 'user');
+    
+    res.status(200).json(responseData);
   }
 
   async updateUserRole(req, res, next) {
-    try {
-      const { id } = req.params;
-      const { role } = req.body;
-      
-      // Update user role
-      const user = await userService.updateUserRole(id, role);
-      
-      // Create response DTO
-      const responseDto = userResponseDto.createUserProfileResponseDto(
-        'User role updated successfully',
-        user
-      );
-      
-      // Send successful response
-      res.status(200).json(responseDto);
-    } catch (err) {
-      next(err);
-    }
+    const { id } = req.params;
+    const { role } = req.body;
+    
+    const user = await userService.updateUserRole(id, role);
+    
+    const responseData = formatItemResponse(user, 'user');
+    
+    res.status(200).json(responseData);
   }
 
   async deleteUser(req, res, next) {
-    try {
-      const { id } = req.params;
-      
-      // Delete user
-      await userService.deleteUser(id);
-      
-      // Send successful response
-      res.status(200).json({
-        message: 'User deleted successfully'
-      });
-    } catch (err) {
-      next(err);
-    }
+    const { id } = req.params;
+    
+    await userService.deleteUser(id);
+    
+    const responseData = formatMessageResponse('User deleted successfully');
+    
+    res.status(200).json(responseData);
   }
 }
 

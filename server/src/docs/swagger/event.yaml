@@ -1,0 +1,375 @@
+openapi: 3.0.3
+info:
+  title: Event API
+  version: 1.0.0
+  description: API endpoints for event management
+
+paths:
+  /api/events:
+    get:
+      tags:
+        - Events
+      summary: Get all events
+      description: Retrieve a paginated list of events
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [title, startDate, endDate, createdAt]
+            default: startDate
+          description: Field to sort by
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [ASC, DESC, asc, desc]
+            default: ASC
+          description: Sort order (ascending or descending)
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 50
+                      page:
+                        type: integer
+                        example: 1
+                      size:
+                        type: integer
+                        example: 10
+                      totalPages:
+                        type: integer
+                        example: 5
+                      hasNext:
+                        type: boolean
+                        example: true
+                      hasPrevious:
+                        type: boolean
+                        example: false
+                  sort:
+                    type: object
+                    properties:
+                      sortBy:
+                        type: string
+                        example: "startDate"
+                      sortOrder:
+                        type: string
+                        example: "ASC"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Events
+      summary: Create a new event
+      description: Create a new event (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - startDate
+                - endDate
+              properties:
+                title:
+                  type: string
+                  example: "Web Development Workshop"
+                description:
+                  type: string
+                  example: "Hands-on workshop for modern web development"
+                location:
+                  type: string
+                  example: "Tech Campus, Room 101"
+                startDate:
+                  type: string
+                  format: date-time
+                  example: "2025-06-01T09:00:00Z"
+                endDate:
+                  type: string
+                  format: date-time
+                  example: "2025-06-01T17:00:00Z"
+                categoryId:
+                  type: string
+                  format: uuid
+                  example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+      responses:
+        '201':
+          description: Event created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Event created successfully
+                  event:
+                    $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/events/{id}:
+    get:
+      tags:
+        - Events
+      summary: Get event by ID
+      description: Retrieve a specific event by its ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event to retrieve
+      responses:
+        '200':
+          description: Event details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event:
+                    $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Events
+      summary: Update an event
+      description: Update an existing event (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Updated Web Development Workshop"
+                description:
+                  type: string
+                  example: "Updated description for the workshop"
+                location:
+                  type: string
+                  example: "Updated location: Tech Campus, Room 202"
+                startDate:
+                  type: string
+                  format: date-time
+                  example: "2025-06-02T10:00:00Z"
+                endDate:
+                  type: string
+                  format: date-time
+                  example: "2025-06-02T18:00:00Z"
+                categoryId:
+                  type: string
+                  format: uuid
+                  example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+      responses:
+        '200':
+          description: Event updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Event updated successfully
+                  event:
+                    $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Events
+      summary: Delete an event
+      description: Delete an event by ID (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event to delete
+      responses:
+        '200':
+          description: Event deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Event deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d480"
+        title:
+          type: string
+          example: "Web Development Workshop"
+        description:
+          type: string
+          example: "Hands-on workshop for modern web development"
+        location:
+          type: string
+          example: "Tech Campus, Room 101"
+        startDate:
+          type: string
+          format: date-time
+          example: "2025-06-01T09:00:00Z"
+        endDate:
+          type: string
+          format: date-time
+          example: "2025-06-01T17:00:00Z"
+        categoryId:
+          type: string
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        createdBy:
+          type: string
+          format: uuid
+          example: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        category:
+          $ref: '#/components/schemas/Category'
+        creator:
+          $ref: '#/components/schemas/User'
+    
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 50
+        page:
+          type: integer
+          example: 1
+        size:
+          type: integer
+          example: 10
+        totalPages:
+          type: integer
+          example: 5
+        hasNext:
+          type: boolean
+          example: true
+        hasPrevious:
+          type: boolean
+          example: false
+    
+    Sort:
+      type: object
+      properties:
+        sortBy:
+          type: string
+          example: "startDate"
+        sortOrder:
+          type: string
+          example: "ASC"

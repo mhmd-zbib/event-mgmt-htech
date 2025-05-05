@@ -1,0 +1,41 @@
+openapi: 3.0.3
+info:
+  title: HTech Assessment API
+  version: 1.0.0
+  description: Complete API documentation for HTech Assessment
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  contact:
+    name: API Support
+    email: support@htechassessment.com
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.htechassessment.com
+    description: Production server
+
+# References to other API documentation files
+# These files are referenced by the swagger.js configuration
+
+tags:
+  - name: Auth
+    description: Authentication operations
+  - name: Users
+    description: User management operations
+  - name: Admin
+    description: Admin-only operations for user management
+  - name: Events
+    description: Event operations
+  - name: Categories
+    description: Category operations
+  - name: Participants
+    description: Event participation operations
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

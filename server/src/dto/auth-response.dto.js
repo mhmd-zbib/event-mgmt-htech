@@ -1,28 +1,18 @@
-const { z } = require('zod');
+/**
+ * Authentication Response DTOs
+ * Responsible for structuring authentication response data
+ */
 
-// Define a schema for the auth response
-const userResponseSchema = z.object({
-  id: z.number(),
-  email: z.string().email(),
-  firstName: z.string().optional().nullable(),
-  lastName: z.string().optional().nullable(),
-  createdAt: z.date().or(z.string()),
-  updatedAt: z.date().or(z.string()),
-  lastLogin: z.date().or(z.string()).optional().nullable()
-});
+const { formatItemResponse } = require('../utils/response-formatter');
 
-const authResponseSchema = z.object({
-  message: z.string(),
-  user: userResponseSchema,
-  token: z.string()
-});
-
-exports.authResponseSchema = authResponseSchema;
-
-// Create response DTO
-exports.createAuthResponseDto = (message, user, token) => {
-  const responseDto = {
-    message,
+/**
+ * Create a standardized authentication response
+ * @param {Object} user - The user object
+ * @param {Object} token - The token object
+ * @returns {Object} Formatted authentication response
+ */
+exports.createAuthResponseDto = (user, token) => {
+  return {
     user: {
       id: user.id,
       email: user.email,
@@ -34,9 +24,4 @@ exports.createAuthResponseDto = (message, user, token) => {
     },
     token
   };
-  
-  // Optional validation of the response DTO
-  // authResponseSchema.parse(responseDto);
-  
-  return responseDto;
 };

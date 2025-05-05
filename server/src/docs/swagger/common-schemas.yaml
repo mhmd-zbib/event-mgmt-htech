@@ -1,0 +1,69 @@
+openapi: 3.0.3
+info:
+  title: Common Schemas
+  version: 1.0.0
+  description: Common schemas used across the API
+
+components:
+  schemas:
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          description: The paginated data items
+          items:
+            type: object
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+              example: 50
+              description: Total number of items
+            page:
+              type: integer
+              example: 1
+              description: Current page number
+            size:
+              type: integer
+              example: 10
+              description: Number of items per page
+            totalPages:
+              type: integer
+              example: 5
+              description: Total number of pages
+            hasNext:
+              type: boolean
+              example: true
+              description: Whether there is a next page
+            hasPrevious:
+              type: boolean
+              example: false
+              description: Whether there is a previous page
+        sort:
+          type: object
+          properties:
+            sortBy:
+              type: string
+              example: "createdAt"
+              description: Field used for sorting
+            sortOrder:
+              type: string
+              example: "DESC"
+              description: Sort direction (ASC or DESC)
+    
+    DetailResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          description: The detailed data object
+    
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Response message
+          example: "Operation completed successfully"

@@ -1,0 +1,368 @@
+openapi: 3.0.3
+info:
+  title: Admin API
+  version: 1.0.0
+  description: API endpoints for admin operations
+
+paths:
+  /api/admin/users:
+    get:
+      tags:
+        - Admin
+      summary: Get all users (admin only)
+      description: Retrieve a paginated list of all users with extended details
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [email, firstName, lastName, role, isActive, createdAt, lastLogin]
+            default: createdAt
+          description: Field to sort by
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [ASC, DESC, asc, desc]
+            default: DESC
+          description: Sort order (ascending or descending)
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search term to filter users by email, firstName, or lastName
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Users retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserExtended'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  sort:
+                    $ref: '#/components/schemas/Sort'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/admin/users/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get user by ID (admin only)
+      description: Retrieve detailed information about a specific user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the user
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User retrieved successfully
+                  data:
+                    $ref: '#/components/schemas/UserExtended'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Admin
+      summary: Update user (admin only)
+      description: Update a user's information including role and active status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the user to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                  example: "John"
+                lastName:
+                  type: string
+                  example: "Doe"
+                isActive:
+                  type: boolean
+                  example: true
+                role:
+                  type: string
+                  enum: [user, admin]
+                  example: "admin"
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User updated successfully
+                  data:
+                    $ref: '#/components/schemas/UserExtended'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Admin
+      summary: Delete user (admin only)
+      description: Delete a user from the system
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the user to delete
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required or cannot delete self
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/admin/dashboard:
+    get:
+      tags:
+        - Admin
+      summary: Get admin dashboard stats
+      description: Retrieve system statistics for the admin dashboard
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Dashboard statistics retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      totalUsers:
+                        type: integer
+                        example: 120
+                      activeUsers:
+                        type: integer
+                        example: 105
+                      adminCount:
+                        type: integer
+                        example: 5
+                      totalEvents:
+                        type: integer
+                        example: 50
+                      upcomingEvents:
+                        type: integer
+                        example: 30
+                      totalCategories:
+                        type: integer
+                        example: 10
+                      totalParticipants:
+                        type: integer
+                        example: 350
+                      recentUsers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                        maxItems: 5
+                      recentEvents:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Event'
+                        maxItems: 5
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    UserExtended:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        role:
+          type: string
+          enum: [user, admin]
+          example: "user"
+        isActive:
+          type: boolean
+          example: true
+        lastLogin:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        eventCount:
+          type: integer
+          example: 5
+        participationCount:
+          type: integer
+          example: 12
+        lastEvent:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "f47ac10b-58cc-4372-a567-0e02b2c3d480"
+            title:
+              type: string
+              example: "Web Development Workshop"
+            startDate:
+              type: string
+              format: date-time
+              example: "2025-06-01T09:00:00Z"
+    Pagination:
+      type: object
+      properties:
+        totalItems:
+          type: integer
+          example: 50
+        totalPages:
+          type: integer
+          example: 5
+        currentPage:
+          type: integer
+          example: 1
+        pageSize:
+          type: integer
+          example: 10
+    
+    Sort:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "createdAt"
+        order:
+          type: string
+          example: "DESC"

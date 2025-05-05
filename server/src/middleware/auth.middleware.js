@@ -1,37 +1,58 @@
 const authService = require('../services/auth.service');
 const userService = require('../services/user.service');
 const { UnauthorizedError, NotFoundError } = require('../errors/HttpErrors');
+const logger = require('../utils/logger');
 
-/**
- * Authentication middleware
- * Verifies the JWT token and attaches the user to the request
- */
-module.exports = async (req, res, next) => {
+module.exports = (options = {}) => async (req, res, next) => {
   try {
-    // Check if Authorization header exists and has the correct format
     const authHeader = req.headers.authorization;
+    
+    if (options.optional && (!authHeader || !authHeader.startsWith('Bearer '))) {
+      return next();
+    }
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return next(new UnauthorizedError('Authentication required'));
     }
 
-    // Extract and verify the token
     const token = authHeader.split(' ')[1];
     const decoded = authService.verifyToken(token);
     
-    // Get the user from the database
     const user = await userService.getUserById(decoded.id);
     
-    // Check if user exists
     if (!user) {
       return next(new NotFoundError('User no longer exists'));
     }
     
-    // Attach user to request
+    if (options.roles && options.roles.length > 0 && !options.roles.includes(user.role)) {
+      logger.warn('Unauthorized role access attempt', {
+        userId: user.id,
+        userRole: user.role,
+        requiredRoles: options.roles,
+        path: req.path,
+        method: req.method,
+        requestId: req.id
+      });
+      return next(new UnauthorizedError('You do not have permission to access this resource'));
+    }
+    
     req.user = user;
     
     next();
   } catch (error) {
-    // JWT verification errors will be caught here
+    if (options.optional && error.name && 
+        (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError')) {
+      return next();
+    }
+    
+    logger.warn('Authentication failure', {
+      errorName: error.name,
+      message: error.message,
+      path: req.path,
+      method: req.method,
+      requestId: req.id
+    });
+    
     next(new UnauthorizedError('Invalid or expired token'));
   }
 };

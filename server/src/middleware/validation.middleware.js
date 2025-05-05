@@ -1,14 +1,41 @@
 const { ValidationError } = require('../errors/HttpErrors');
 
-/**
- * Middleware for Zod schema validation
- * @param {object} schema - Zod schema for validation
- * @returns {function} Express middleware
- */
-const validationMiddleware = (schema) => (req, res, next) => {
+const validationMiddleware = (schema, source = 'body') => (req, res, next) => {
   try {
-    const result = schema.parse(req.body);
-    req.validatedData = result;
+    let dataToValidate;
+    let validatedData;
+    
+    switch (source) {
+      case 'body':
+        dataToValidate = req.body;
+        validatedData = schema.parse(dataToValidate);
+        req.validatedData = validatedData;
+        break;
+      case 'query':
+        dataToValidate = req.query;
+        validatedData = schema.parse(dataToValidate);
+        req.validatedQuery = validatedData;
+        break;
+      case 'params':
+        dataToValidate = req.params;
+        validatedData = schema.parse(dataToValidate);
+        req.validatedParams = validatedData;
+        break;
+      case 'all':
+        if (schema.body) {
+          req.validatedData = schema.body.parse(req.body);
+        }
+        if (schema.query) {
+          req.validatedQuery = schema.query.parse(req.query);
+        }
+        if (schema.params) {
+          req.validatedParams = schema.params.parse(req.params);
+        }
+        break;
+      default:
+        throw new Error(`Invalid validation source: ${source}`);
+    }
+    
     next();
   } catch (error) {
     if (error.errors) {

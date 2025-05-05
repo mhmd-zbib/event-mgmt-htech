@@ -9,7 +9,13 @@ const router = require("express").Router();
  *     description: User management operations
  *   - name: Admin
  *     description: Admin-only operations for user management
- * 
+ *   - name: Events
+ *     description: Event operations
+ *   - name: Categories
+ *     description: Category operations
+ *   - name: Participants
+ *     description: Event participation operations
+ *
  * components:
  *   securitySchemes:
  *     bearerAuth:
@@ -21,6 +27,24 @@ const router = require("express").Router();
 const authRoutes = require("./auth-routes");
 const userRoutes = require("./user-routes");
 const adminRoutes = require("./admin-routes");
+const eventRoutes = require("./event-routes");
+const categoryRoutes = require("./category-routes");
+const participantRoutes = require("./participant-routes");
+
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: Redirects to API documentation
+ *     description: Redirects users to the Swagger API documentation
+ *     tags: [System]
+ *     responses:
+ *       302:
+ *         description: Redirects to API documentation
+ */
+router.get("/", (req, res) => {
+  res.redirect('/api-docs');
+});
 
 /**
  * @swagger
@@ -58,5 +82,8 @@ router.get("/health", (req, res) => {
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/admin", adminRoutes);
+router.use("/events", eventRoutes);
+router.use("/categories", categoryRoutes);
+router.use("/events", participantRoutes);
 
 module.exports = router;

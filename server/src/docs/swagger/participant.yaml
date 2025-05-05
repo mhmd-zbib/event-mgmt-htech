@@ -1,0 +1,452 @@
+openapi: 3.0.3
+info:
+  title: Participant API
+  version: 1.0.0
+  description: API endpoints for managing event participants
+
+paths:
+  /api/events/{eventId}/participants:
+    get:
+      tags:
+        - Participants
+      summary: Get all participants for an event
+      description: Retrieve a list of participants for a specific event
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [registered, attended, cancelled, waitlisted]
+          description: Filter by participant status
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [registrationDate, status]
+            default: registrationDate
+          description: Field to sort by
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [ASC, DESC, asc, desc]
+            default: DESC
+          description: Sort order (ascending or descending)
+      responses:
+        '200':
+          description: List of participants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  list:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Participant'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  sort:
+                    $ref: '#/components/schemas/Sort'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Participants
+      summary: Register for an event
+      description: Register the authenticated user for a specific event
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event to register for
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  example: "Special dietary requirements: vegetarian"
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Successfully registered for the event
+                  participant:
+                    $ref: '#/components/schemas/Participant'
+        '400':
+          description: Registration failed - validation error or already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/events/{eventId}/participants/{userId}:
+    get:
+      tags:
+        - Participants
+      summary: Get participant details
+      description: Retrieve details of a specific participant for an event
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the user
+      responses:
+        '200':
+          description: Participant details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Participant retrieved successfully
+                  data:
+                    $ref: '#/components/schemas/Participant'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Participants
+      summary: Update participant status
+      description: Update the status of a participant (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [registered, attended, cancelled, waitlisted]
+                  example: "attended"
+                notes:
+                  type: string
+                  example: "Arrived on time and participated actively"
+      responses:
+        '200':
+          description: Participant status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Participant status updated successfully
+                  participant:
+                    $ref: '#/components/schemas/Participant'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Participants
+      summary: Remove participant
+      description: Remove a participant from an event (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the event
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the user
+      responses:
+        '200':
+          description: Participant removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Participant removed successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/users/{userId}/participations:
+    get:
+      tags:
+        - Participants
+        - Users
+      summary: Get user's participations
+      description: Retrieve a list of events a user is participating in
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the user
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [registered, attended, cancelled, waitlisted]
+          description: Filter by participant status
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [registrationDate, eventDate]
+            default: eventDate
+          description: Field to sort by
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [ASC, DESC, asc, desc]
+            default: ASC
+          description: Sort order (ascending or descending)
+      responses:
+        '200':
+          description: List of user's participations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Participations retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ParticipationWithEvent'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  sort:
+                    $ref: '#/components/schemas/Sort'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin or own user access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    Participant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d481"
+        userId:
+          type: string
+          format: uuid
+          example: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
+        eventId:
+          type: string
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d480"
+        status:
+          type: string
+          enum: [registered, attended, cancelled, waitlisted]
+          example: "registered"
+        notes:
+          type: string
+          example: "Special dietary requirements: vegetarian"
+        registrationDate:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        user:
+          $ref: '#/components/schemas/User'
+    
+    ParticipationWithEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d481"
+        userId:
+          type: string
+          format: uuid
+          example: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
+        eventId:
+          type: string
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d480"
+        status:
+          type: string
+          enum: [registered, attended, cancelled, waitlisted]
+          example: "registered"
+        notes:
+          type: string
+          example: "Special dietary requirements: vegetarian"
+        registrationDate:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        event:
+          $ref: '#/components/schemas/Event'
