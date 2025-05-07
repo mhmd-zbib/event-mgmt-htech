@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const userService = require('./user.service');
-const { UnauthorizedError, BadRequestError } = require('../errors/HttpErrors');
+const { UnauthorizedError, BadRequestError, InternalServerError } = require('../errors/HttpErrors');
 const logger = require('../utils/logger');
 
 class AuthService {
@@ -11,10 +11,13 @@ class AuthService {
     
     logger.info('User registered successfully', {
       userId: user.id,
-      email: user.email
+      email: user.email.substring(0, 3) + '***' // Log partial email for audit, not full email
     });
     
-    return { user, token };
+    // Don't return sensitive user data in the response
+    const sanitizedUser = this.sanitizeUserForResponse(user);
+    
+    return { user: sanitizedUser, token };
   }
 
   async login(credentials) {
@@ -25,33 +28,48 @@ class AuthService {
     }
 
     const user = await userService.getUserByEmail(email);
+    
+    // Use consistent error message for all authentication failures
+    // to prevent user enumeration attacks
+    const authFailureMessage = 'Invalid credentials';
+    
     if (!user) {
-      throw new UnauthorizedError('Invalid credentials');
+      logger.info('Login attempt for non-existent user', {
+        maskedEmail: email.substring(0, 3) + '***'
+      });
+      throw new UnauthorizedError(authFailureMessage);
     }
 
     if (user.isActive === false) {
-      throw new UnauthorizedError('Account is deactivated. Please contact support.');
+      logger.info('Login attempt for inactive account', {
+        userId: user.id,
+        maskedEmail: email.substring(0, 3) + '***'
+      });
+      throw new UnauthorizedError(authFailureMessage);
     }
 
     const isValidPassword = await user.isValidPassword(password);
     if (!isValidPassword) {
-      logger.warn('Failed login attempt', {
-        email,
-        reason: 'Invalid password'
+      logger.warn('Failed login attempt - invalid password', {
+        userId: user.id,
+        maskedEmail: email.substring(0, 3) + '***'
       });
-      throw new UnauthorizedError('Invalid credentials');
+      throw new UnauthorizedError(authFailureMessage);
     }
 
     await userService.updateLastLogin(user);
     
     const token = this.generateToken(user);
     
-    logger.info('User logged in', {
+    logger.info('User logged in successfully', {
       userId: user.id,
-      email: user.email
+      maskedEmail: email.substring(0, 3) + '***'
     });
     
-    return { user, token };
+    // Don't return sensitive user data in the response
+    const sanitizedUser = this.sanitizeUserForResponse(user);
+    
+    return { user: sanitizedUser, token };
   }
 
   generateToken(user) {
@@ -78,17 +96,33 @@ class AuthService {
   }
 
   async refreshToken(refreshToken) {
-    try {
-      const decoded = this.verifyToken(refreshToken);
-      
-      const user = await userService.getUserById(decoded.id);
-      
-      const newToken = this.generateToken(user);
-      
-      return { user, token: newToken };
-    } catch (error) {
-      throw new UnauthorizedError('Invalid refresh token');
+    if (!refreshToken) {
+      throw new BadRequestError('Refresh token is required');
     }
+    
+    const decoded = this.verifyToken(refreshToken);
+    
+    const user = await userService.getUserById(decoded.id);
+    
+    const newToken = this.generateToken(user);
+    
+    // Don't return sensitive user data in the response
+    const sanitizedUser = this.sanitizeUserForResponse(user);
+    
+    return { user: sanitizedUser, token: newToken };
+  }
+  
+  // Helper method to sanitize user data for responses
+  sanitizeUserForResponse(user) {
+    const userData = user.toJSON ? user.toJSON() : { ...user };
+    
+    // Remove sensitive fields
+    const sensitiveFields = ['password', 'resetToken', 'resetTokenExpires'];
+    sensitiveFields.forEach(field => {
+      if (userData[field]) delete userData[field];
+    });
+    
+    return userData;
   }
 }
 

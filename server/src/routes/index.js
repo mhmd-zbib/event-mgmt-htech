@@ -1,4 +1,5 @@
 const router = require("express").Router();
+const authMiddleware = require("../middleware/auth.middleware");
 
 /**
  * @swagger
@@ -13,8 +14,6 @@ const router = require("express").Router();
  *     description: Event operations
  *   - name: Categories
  *     description: Category operations
- *   - name: Participants
- *     description: Event participation operations
  *   - name: Tags
  *     description: Tag operations for events
  *
@@ -31,9 +30,9 @@ const userRoutes = require("./user-routes");
 const adminRoutes = require("./admin-routes");
 const eventRoutes = require("./event-routes");
 const categoryRoutes = require("./category-routes");
-const participantRoutes = require("./participant-routes");
 const tagRoutes = require("./tag-routes");
 
+// Public routes (no authentication required)
 /**
  * @swagger
  * /:
@@ -82,13 +81,15 @@ router.get("/health", (req, res) => {
   });
 });
 
+// API Routes
+// Authentication routes - no auth middleware
 router.use("/auth", authRoutes);
-router.use("/users", userRoutes);
-router.use("/admin", adminRoutes);
-router.use("/events", eventRoutes);
-router.use("/categories", categoryRoutes);
-router.use("/tags", tagRoutes);
-// Separate mounting path for participant routes to avoid conflict
-router.use("/", participantRoutes);
+
+// Protected routes - apply auth middleware
+router.use("/users", authMiddleware(), userRoutes);
+router.use("/admin", authMiddleware(), adminRoutes);
+router.use("/events", authMiddleware(), eventRoutes);
+router.use("/categories", authMiddleware(), categoryRoutes);
+router.use("/tags", authMiddleware(), tagRoutes);
 
 module.exports = router;

@@ -6,8 +6,10 @@ const validationMiddleware = require('../middleware/validation.middleware');
 
 router.use(authMiddleware);
 
-router.get('/profile', userController.getProfile);
+// GET /users/me - Get current user's profile
+router.get('/me', userController.getProfile);
 
-router.put('/profile', validationMiddleware(userSchema.updateProfile), userController.updateProfile);
+// PUT /users/me - Update current user's profile
+router.put('/me', validationMiddleware(userSchema.updateProfile), userController.updateProfile);
 
 module.exports = router;

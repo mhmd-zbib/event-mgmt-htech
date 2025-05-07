@@ -3,13 +3,14 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { v4: uuidv4 } = require('uuid');
 const swaggerUi = require('swagger-ui-express');
+const path = require('path');
 require('dotenv').config();
 
 const errorHandler = require('./middleware/error.middleware');
 const rateLimiter = require('./middleware/rate-limiter.middleware');
 const { NotFoundError } = require('./errors/HttpErrors');
 const logger = require('./utils/logger');
-const { swaggerSpec, swaggerUiOptions } = require('./config/swagger');
+const { swaggerSpec, swaggerUiOptions, exportSwaggerDocs } = require('./config/swagger');
 
 const app = express();
 
@@ -24,13 +25,33 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from the public directory
+app.use('/public', express.static(path.join(__dirname, '../public')));
+
 app.use(rateLimiter({
   windowMs: 15 * 60 * 1000,
   maxRequests: 100,
 }));
 
+// Serve Swagger UI documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 
+// Routes to export Swagger documentation in different formats
+app.get('/api-docs.json', (req, res) => {
+  const jsonDocs = exportSwaggerDocs('json');
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="api-docs.json"');
+  res.send(jsonDocs);
+});
+
+app.get('/api-docs.yaml', (req, res) => {
+  const yamlDocs = exportSwaggerDocs('yaml');
+  res.setHeader('Content-Type', 'text/yaml');
+  res.setHeader('Content-Disposition', 'attachment; filename="api-docs.yaml"');
+  res.send(yamlDocs);
+});
+
+// Request logging middleware
 app.use((req, res, next) => {
   const startTime = Date.now();
   logger.info(`${req.method} ${req.originalUrl}`, {

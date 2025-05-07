@@ -5,7 +5,7 @@ info:
   description: API endpoints for managing event participants
 
 paths:
-  /api/events/{eventId}/participants:
+  /events/{eventId}/participants:
     get:
       tags:
         - Participants
@@ -109,7 +109,7 @@ paths:
                   example: "Special dietary requirements: vegetarian"
       responses:
         '201':
-          description: Registration successful
+          description: User registered for event successfully
           content:
             application/json:
               schema:
@@ -117,9 +117,10 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Successfully registered for the event
-                  participant:
-                    $ref: '#/components/schemas/Participant'
+                    example: "User registered for event successfully"
+                  link:
+                    type: string
+                    example: "/events/f47ac10b-58cc-4372-a567-0e02b2c3d480"
         '400':
           description: Registration failed - validation error or already registered
           content:
@@ -133,7 +134,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/events/{eventId}/participants/{userId}:
+  /events/{eventId}/participants/{userId}:
     get:
       tags:
         - Participants
@@ -294,7 +295,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/users/{userId}/participations:
+  /users/{userId}/participations:
     get:
       tags:
         - Participants
@@ -375,12 +376,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/participants:
+  /participants:
     get:
       tags:
         - Participants
       summary: Get current user's participating events
-      description: Retrieve a list of events the current authenticated user is participating in
+      description: Retrieve a list of events the current authenticated user is participating in. Returns data in the same format as the /events endpoint.
       security:
         - bearerAuth: []
       parameters:
@@ -400,8 +401,8 @@ paths:
           name: sortBy
           schema:
             type: string
-            enum: [registrationDate, createdAt]
-            default: registrationDate
+            enum: [title, startDate, endDate, createdAt]
+            default: startDate
           description: Field to sort by
         - in: query
           name: sortOrder
@@ -416,16 +417,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  participations:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ParticipationWithEvent'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
-                  sort:
-                    $ref: '#/components/schemas/Sort'
+                $ref: '#/components/schemas/EventListResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '500':
@@ -506,3 +498,30 @@ components:
           example: "2025-05-05T10:30:00Z"
         event:
           $ref: '#/components/schemas/Event'
+    
+    EventListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "f47ac10b-58cc-4372-a567-0e02b2c3d480"
+              title:
+                type: string
+                example: "Web Development Workshop"
+              location:
+                type: string
+                example: "Tech Campus, Room 101"
+              startDate:
+                type: string
+                format: date-time
+                example: "2025-06-01T09:00:00Z"
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        sort:
+          $ref: '#/components/schemas/Sort'

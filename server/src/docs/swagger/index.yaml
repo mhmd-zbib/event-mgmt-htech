@@ -1,39 +1,58 @@
 openapi: 3.0.3
 info:
-  title: HTech Assessment API
+  title: HTech Event Management API
   version: 1.0.0
-  description: Complete API documentation for HTech Assessment
+  description: |
+    # Event Management API
+    
+    This API provides a comprehensive set of endpoints for managing events, participants, categories, and tags.
+    
+    ## Key Features
+    
+    * **User authentication** - Register, login, and manage user accounts
+    * **Event management** - Create, update, delete, and search events
+    * **Category organization** - Organize events by categories
+    * **Tagging system** - Add multiple tags to events for better searchability
+    * **Participant management** - Register for events and track attendance
+    
+    ## Authentication
+    
+    All protected endpoints require a valid JWT token, which can be obtained from the /auth/login endpoint.
+    Include the token in the Authorization header as a Bearer token.
+    
+    ## Pagination
+    
+    List endpoints support pagination through the `page` and `size` query parameters, and sorting through
+    the `sortBy` and `sortOrder` parameters.
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
   contact:
     name: API Support
-    email: support@htechassessment.com
+    email: support@htechevents.com
+    url: https://htechevents.com/support
 
 servers:
   - url: http://localhost:3000
     description: Development server
-  - url: https://api.htechassessment.com
+  - url: https://api.htechevents.com
     description: Production server
-
-# References to other API documentation files
-# These files are referenced by the swagger.js configuration
 
 tags:
   - name: Auth
-    description: Authentication operations
+    description: Authentication and authorization operations
   - name: Users
-    description: User management operations
+    description: User account management
   - name: Admin
-    description: Admin-only operations for user management
+    description: Administrative operations for user management
   - name: Events
-    description: Event operations
+    description: Create, read, update, and delete events
   - name: Categories
-    description: Category operations
+    description: Manage event categories for organization
   - name: Participants
-    description: Event participation operations
+    description: Register for events and manage participation
   - name: Tags
-    description: Tag operations for events
+    description: Create and manage tags for events
 
 components:
   securitySchemes:
@@ -41,3 +60,4 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT token obtained from the authentication endpoint

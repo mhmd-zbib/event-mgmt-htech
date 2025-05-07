@@ -5,7 +5,7 @@ info:
   description: API endpoints for managing tags
 
 paths:
-  /api/tags:
+  /tags:
     get:
       tags:
         - Tags
@@ -110,7 +110,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/tags/{id}:
+  /tags/{id}:
     get:
       tags:
         - Tags
@@ -245,7 +245,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/tags/{tagId}/events:
+  /tags/{tagId}/events:
     get:
       tags:
         - Tags
@@ -307,7 +307,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/events/{eventId}/tags:
+  /events/{eventId}/tags:
     get:
       tags:
         - Tags
@@ -371,7 +371,7 @@ paths:
                     format: uuid
                   example: ["123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174001"]
       responses:
-        '200':
+        '201':
           description: Tags added to event successfully
           content:
             application/json:
@@ -380,10 +380,10 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Tags added successfully"
+                    example: "Tags added to event successfully"
                   link:
                     type: string
-                    example: "/api/events/123e4567-e89b-12d3-a456-426614174000"
+                    example: "/events/123e4567-e89b-12d3-a456-426614174000"
         '400':
           description: Bad Request - Invalid tag IDs or format
           content:
@@ -448,10 +448,10 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Tags removed successfully"
+                    example: "Tags removed from event successfully"
                   link:
                     type: string
-                    example: "/api/events/123e4567-e89b-12d3-a456-426614174000"
+                    example: "/events/123e4567-e89b-12d3-a456-426614174000"
         '400':
           description: Bad Request - Invalid tag IDs or format
           content:

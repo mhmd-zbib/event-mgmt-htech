@@ -5,7 +5,7 @@ info:
   description: API endpoints for category management
 
 paths:
-  /api/categories:
+  /categories:
     get:
       tags:
         - Categories
@@ -112,7 +112,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/categories/{id}:
+  /categories/{id}:
     get:
       tags:
         - Categories
@@ -243,7 +243,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/categories/{id}/events:
+  /categories/{id}/events:
     get:
       tags:
         - Categories

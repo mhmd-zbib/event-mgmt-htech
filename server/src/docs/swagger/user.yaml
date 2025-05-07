@@ -5,7 +5,7 @@ info:
   description: API endpoints for user management
 
 paths:
-  /api/users:
+  /users:
     get:
       tags:
         - Users
@@ -70,7 +70,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/users/me:
+  /users/me:
     get:
       tags:
         - Users
@@ -188,7 +188,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/users/{id}:
+  /users/{id}:
     get:
       tags:
         - Users

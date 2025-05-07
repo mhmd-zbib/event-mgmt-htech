@@ -37,23 +37,58 @@ const processPaginationParams = (
   };
 };
 
-const createPaginationMeta = (count, { page, size, sortBy, sortOrder }) => {
-  const totalPages = Math.ceil(count / size);
+/**
+ * Creates pagination metadata for API responses
+ * Now includes HATEOAS links for better RESTful compliance
+ * 
+ * @param {number} totalItems - Total number of items
+ * @param {Object} options - Pagination options
+ * @param {number} options.page - Current page number
+ * @param {number} options.size - Items per page
+ * @param {string} options.baseUrl - Base URL for HATEOAS links (optional)
+ * @returns {Object} Pagination metadata with HATEOAS links
+ */
+const createPaginationMeta = (totalItems, options) => {
+  const { page, size, baseUrl } = options;
+  const totalPages = Math.ceil(totalItems / size);
   
-  return {
-    pagination: {
-      total: count,
-      page,
-      size,
-      totalPages,
-      hasNext: page < totalPages,
-      hasPrevious: page > 1
-    },
-    sort: {
-      sortBy,
-      sortOrder
-    }
+  const meta = {
+    totalItems,
+    itemsPerPage: size,
+    currentPage: page,
+    totalPages
   };
+  
+  // Add HATEOAS links if a baseUrl was provided
+  if (baseUrl) {
+    const query = new URLSearchParams();
+    query.append('size', size);
+    
+    const links = {};
+    
+    // Current page
+    links.self = `${baseUrl}?page=${page}&${query.toString()}`;
+    
+    // First page
+    links.first = `${baseUrl}?page=1&${query.toString()}`;
+    
+    // Last page
+    links.last = `${baseUrl}?page=${totalPages}&${query.toString()}`;
+    
+    // Previous page (if not on first page)
+    if (page > 1) {
+      links.prev = `${baseUrl}?page=${page - 1}&${query.toString()}`;
+    }
+    
+    // Next page (if not on last page)
+    if (page < totalPages) {
+      links.next = `${baseUrl}?page=${page + 1}&${query.toString()}`;
+    }
+    
+    meta.links = links;
+  }
+  
+  return meta;
 };
 
 /**

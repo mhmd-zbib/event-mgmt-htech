@@ -5,7 +5,7 @@ info:
   description: API endpoints for admin operations
 
 paths:
-  /api/admin/users:
+  /admin/users:
     get:
       tags:
         - Admin
@@ -75,7 +75,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/admin/users/{id}:
+  /admin/users/{id}:
     get:
       tags:
         - Admin
@@ -219,7 +219,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/admin/dashboard:
+  /admin/dashboard:
     get:
       tags:
         - Admin

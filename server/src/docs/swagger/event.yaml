@@ -5,7 +5,7 @@ info:
   description: API endpoints for event management
 
 paths:
-  /api/events:
+  /events:
     get:
       tags:
         - Events
@@ -139,7 +139,7 @@ paths:
                     example: "Event created successfully"
                   link:
                     type: string
-                    example: "/api/events/f47ac10b-58cc-4372-a567-0e02b2c3d480"
+                    example: "/events/f47ac10b-58cc-4372-a567-0e02b2c3d480"
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -153,7 +153,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/events/{id}:
+  /events/{id}:
     get:
       tags:
         - Events
@@ -296,7 +296,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/events/{eventId}/categories/{categoryId}:
+  /events/{eventId}/categories/{categoryId}:
     patch:
       tags:
         - Events
@@ -332,7 +332,7 @@ paths:
                     example: "Category set successfully"
                   link:
                     type: string
-                    example: "/api/events/f47ac10b-58cc-4372-a456-426614174000"
+                    example: "/events/f47ac10b-58cc-4372-a456-426614174000"
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':

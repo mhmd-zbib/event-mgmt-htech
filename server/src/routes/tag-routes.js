@@ -1,38 +1,42 @@
 const router = require('express').Router();
 const tagController = require('../controllers/tag.controller');
-const authMiddleware = require('../middleware/auth.middleware');
 const authorize = require('../middleware/authorize.middleware');
 const validationMiddleware = require('../middleware/validation.middleware');
 const tagSchema = require('../utils/validation/tag.validation');
 
-// Public routes - accessible to everyone
+// GET /tags - Get all tags
 router.get('/', 
   validationMiddleware(tagSchema.query, 'query'),
   tagController.getAllTags
 );
 
+// GET /tags/:id - Get a specific tag by ID
 router.get('/:id', tagController.getTagById);
 
-router.get('/:tagId/events',
+// GET /tags/:id/events - Get all events for a specific tag
+router.get('/:id/events',
   validationMiddleware(tagSchema.query, 'query'),
   tagController.getTagEvents
 );
 
-// Protected routes - require authentication
+// Admin only routes
+// POST /tags - Create a new tag (admin only)
 router.post('/',
-  authMiddleware(),
+  authorize('admin'),
   validationMiddleware(tagSchema.create),
   tagController.createTag
 );
 
+// PUT /tags/:id - Update a tag (admin only)
 router.put('/:id',
-  authMiddleware(),
+  authorize('admin'),
   validationMiddleware(tagSchema.update),
   tagController.updateTag
 );
 
+// DELETE /tags/:id - Delete a tag (admin only)
 router.delete('/:id',
-  authMiddleware(),
+  authorize('admin'),
   tagController.deleteTag
 );
 
