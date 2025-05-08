@@ -1,7 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-// Import models early to avoid circular dependencies
 const User = require('./user.model');
 const Event = require('./event.model');
 
@@ -52,17 +51,12 @@ const Participant = sequelize.define('Participant', {
   ],
   validate: {
     noUserDuplicates() {
-      // This validation helps to provide a better error message when trying to create a duplicate
-      // It will be checked in addition to the unique constraint on the database
       if (this.userId && this.eventId) {
-        // The actual check is done at the service level and by the database unique constraint
-        // This is just an extra validation layer
       }
     }
   }
 });
 
-// User-Participant relationship
 User.hasMany(Participant, {
   foreignKey: 'userId',
   as: 'participations'
@@ -73,7 +67,6 @@ Participant.belongsTo(User, {
   as: 'user'
 });
 
-// Event-Participant relationship
 Event.hasMany(Participant, {
   foreignKey: 'eventId',
   as: 'participants'

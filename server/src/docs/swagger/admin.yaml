@@ -2,64 +2,72 @@ openapi: 3.0.3
 info:
   title: Admin API
   version: 1.0.0
-  description: API endpoints for admin operations
+  description: Administrative API endpoints for user and system management
 
 paths:
   /admin/users:
     get:
       tags:
         - Admin
-      summary: Get all users (admin only)
-      description: Retrieve a paginated list of all users with extended details
+      summary: Get all users
+      description: Retrieve a paginated list of all users (admin only)
       security:
         - bearerAuth: []
       parameters:
-        - in: query
-          name: page
+        - name: page
+          in: query
+          description: Page number for pagination
           schema:
             type: integer
             default: 1
-          description: Page number for pagination
-        - in: query
-          name: size
+        - name: size
+          in: query
+          description: Number of items per page
           schema:
             type: integer
             default: 10
-          description: Number of items per page
-        - in: query
-          name: sortBy
+        - name: sortBy
+          in: query
+          description: Field to sort by
           schema:
             type: string
-            enum: [email, firstName, lastName, role, isActive, createdAt, lastLogin]
+            enum: [email, firstName, lastName, role, createdAt, lastLogin]
             default: createdAt
-          description: Field to sort by
-        - in: query
-          name: sortOrder
+        - name: sortOrder
+          in: query
+          description: Sort order
           schema:
             type: string
             enum: [ASC, DESC, asc, desc]
             default: DESC
-          description: Sort order (ascending or descending)
-        - in: query
-          name: search
+        - name: role
+          in: query
+          description: Filter by role
           schema:
             type: string
-          description: Search term to filter users by email, firstName, or lastName
+            enum: [user, admin]
+        - name: isActive
+          in: query
+          description: Filter by active status
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          description: Search in email, firstName, or lastName
+          schema:
+            type: string
       responses:
         '200':
-          description: List of users
+          description: Users retrieved successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  message:
-                    type: string
-                    example: Users retrieved successfully
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/UserExtended'
+                      $ref: '#/components/schemas/UserAdmin'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
                   sort:
@@ -67,11 +75,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: Forbidden - Admin access required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/ForbiddenError'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -79,39 +83,32 @@ paths:
     get:
       tags:
         - Admin
-      summary: Get user by ID (admin only)
-      description: Retrieve detailed information about a specific user
+      summary: Get user by ID
+      description: Retrieve a specific user by ID (admin only)
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
+          description: User ID
           schema:
             type: string
             format: uuid
-          description: UUID of the user
       responses:
         '200':
-          description: User details
+          description: User retrieved successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  message:
-                    type: string
-                    example: User retrieved successfully
-                  data:
-                    $ref: '#/components/schemas/UserExtended'
+                  user:
+                    $ref: '#/components/schemas/UserAdminDetail'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: Forbidden - Admin access required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
         '500':
@@ -120,38 +117,24 @@ paths:
     put:
       tags:
         - Admin
-      summary: Update user (admin only)
-      description: Update a user's information including role and active status
+      summary: Update user
+      description: Update a specific user (admin only)
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
+          description: User ID
           schema:
             type: string
             format: uuid
-          description: UUID of the user to update
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                firstName:
-                  type: string
-                  example: "John"
-                lastName:
-                  type: string
-                  example: "Doe"
-                isActive:
-                  type: boolean
-                  example: true
-                role:
-                  type: string
-                  enum: [user, admin]
-                  example: "admin"
+              $ref: '#/components/schemas/UpdateUserAdminRequest'
       responses:
         '200':
           description: User updated successfully
@@ -162,39 +145,41 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: User updated successfully
-                  data:
-                    $ref: '#/components/schemas/UserExtended'
+                    example: "User updated successfully"
+                  user:
+                    $ref: '#/components/schemas/UserAdmin'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: Forbidden - Admin access required
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Email already in use
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
         '500':
           $ref: '#/components/responses/InternalServerError'
     
     delete:
       tags:
         - Admin
-      summary: Delete user (admin only)
-      description: Delete a user from the system
+      summary: Delete user
+      description: Delete a specific user (admin only)
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
+          description: User ID
           schema:
             type: string
             format: uuid
-          description: UUID of the user to delete
       responses:
         '200':
           description: User deleted successfully
@@ -205,31 +190,47 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: User deleted successfully
+                    example: "User deleted successfully"
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: Forbidden - Admin access required or cannot delete self
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /admin/dashboard:
-    get:
+  /admin/users/{id}/status:
+    patch:
       tags:
         - Admin
-      summary: Get admin dashboard stats
-      description: Retrieve system statistics for the admin dashboard
+      summary: Update user status
+      description: Enable or disable a user account (admin only)
       security:
         - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - isActive
+              properties:
+                isActive:
+                  type: boolean
+                  example: false
       responses:
         '200':
-          description: Dashboard statistics
+          description: User status updated successfully
           content:
             application/json:
               schema:
@@ -237,55 +238,179 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Dashboard statistics retrieved successfully
-                  data:
-                    type: object
-                    properties:
-                      totalUsers:
-                        type: integer
-                        example: 120
-                      activeUsers:
-                        type: integer
-                        example: 105
-                      adminCount:
-                        type: integer
-                        example: 5
-                      totalEvents:
-                        type: integer
-                        example: 50
-                      upcomingEvents:
-                        type: integer
-                        example: 30
-                      totalCategories:
-                        type: integer
-                        example: 10
-                      totalParticipants:
-                        type: integer
-                        example: 350
-                      recentUsers:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/User'
-                        maxItems: 5
-                      recentEvents:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Event'
-                        maxItems: 5
+                    example: "User status updated successfully"
+                  user:
+                    $ref: '#/components/schemas/UserAdmin'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: Forbidden - Admin access required
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/users/{id}/role:
+    patch:
+      tags:
+        - Admin
+      summary: Update user role
+      description: Change a user's role (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+              properties:
+                role:
+                  type: string
+                  enum: [user, admin]
+                  example: "admin"
+      responses:
+        '200':
+          description: User role updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User role updated successfully"
+                  user:
+                    $ref: '#/components/schemas/UserAdmin'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/system/logs:
+    get:
+      tags:
+        - Admin
+      summary: Get system logs
+      description: Retrieve system logs (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: level
+          in: query
+          description: Log level
+          schema:
+            type: string
+            enum: [error, warn, info, debug]
+        - name: startDate
+          in: query
+          description: Start date for logs
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: End date for logs
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: Logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SystemLog'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/system/health:
+    get:
+      tags:
+        - Admin
+      summary: Get system health
+      description: Retrieve system health information (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Health information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemHealth'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
 components:
   schemas:
-    UserExtended:
+    UpdateUserAdminRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        role:
+          type: string
+          enum: [user, admin]
+          example: "admin"
+        isActive:
+          type: boolean
+          example: true
+
+    UserAdmin:
       type: object
       properties:
         id:
@@ -295,7 +420,7 @@ components:
         email:
           type: string
           format: email
-          example: "user@example.com"
+          example: "john.doe@example.com"
         firstName:
           type: string
           example: "John"
@@ -309,6 +434,9 @@ components:
         isActive:
           type: boolean
           example: true
+        isEmailVerified:
+          type: boolean
+          example: true
         lastLogin:
           type: string
           format: date-time
@@ -316,53 +444,191 @@ components:
         createdAt:
           type: string
           format: date-time
-          example: "2025-05-05T10:30:00Z"
+          example: "2025-01-01T09:00:00Z"
         updatedAt:
           type: string
           format: date-time
+          example: "2025-05-01T14:20:00Z"
+
+    UserAdminDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        role:
+          type: string
+          enum: [user, admin]
+          example: "user"
+        isActive:
+          type: boolean
+          example: true
+        isEmailVerified:
+          type: boolean
+          example: true
+        lastLogin:
+          type: string
+          format: date-time
           example: "2025-05-05T10:30:00Z"
-        eventCount:
-          type: integer
-          example: 5
-        participationCount:
-          type: integer
-          example: 12
-        lastEvent:
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-01-01T09:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-05-01T14:20:00Z"
+        phoneNumber:
+          type: string
+          example: "+1234567890"
+        bio:
+          type: string
+          example: "Software engineer with 5+ years of experience."
+        stats:
           type: object
           properties:
-            id:
-              type: string
-              format: uuid
-              example: "f47ac10b-58cc-4372-a567-0e02b2c3d480"
-            title:
-              type: string
-              example: "Web Development Workshop"
-            startDate:
+            eventsCreated:
+              type: integer
+              example: 5
+            eventsAttended:
+              type: integer
+              example: 10
+            eventsRegistered:
+              type: integer
+              example: 15
+            lastActivity:
               type: string
               format: date-time
-              example: "2025-06-01T09:00:00Z"
+              example: "2025-05-05T10:30:00Z"
+
+    SystemLog:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-05-05T10:30:00Z"
+        level:
+          type: string
+          enum: [error, warn, info, debug]
+          example: "error"
+        message:
+          type: string
+          example: "Database connection failed"
+        service:
+          type: string
+          example: "htech-assessment-api"
+        context:
+          type: object
+          additionalProperties: true
+          example:
+            requestId: "req-123456"
+            userId: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
+            path: "/api/events"
+            method: "GET"
+            statusCode: 500
+
+    SystemHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-05-08T10:30:00Z"
+        uptime:
+          type: number
+          example: 86400
+        version:
+          type: string
+          example: "1.0.0"
+        services:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [healthy, degraded, unhealthy]
+                  example: "healthy"
+                responseTime:
+                  type: number
+                  example: 10
+            redis:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [healthy, degraded, unhealthy]
+                  example: "healthy"
+                responseTime:
+                  type: number
+                  example: 5
+        memory:
+          type: object
+          properties:
+            total:
+              type: number
+              example: 8192
+            used:
+              type: number
+              example: 4096
+            free:
+              type: number
+              example: 4096
+        cpu:
+          type: object
+          properties:
+            usage:
+              type: number
+              example: 30
+            cores:
+              type: integer
+              example: 4
+
     Pagination:
       type: object
       properties:
-        totalItems:
+        total:
           type: integer
           example: 50
+        page:
+          type: integer
+          example: 1
+        size:
+          type: integer
+          example: 10
         totalPages:
           type: integer
           example: 5
-        currentPage:
-          type: integer
-          example: 1
-        pageSize:
-          type: integer
-          example: 10
-    
+        hasNext:
+          type: boolean
+          example: true
+        hasPrevious:
+          type: boolean
+          example: false
+
     Sort:
       type: object
       properties:
-        field:
+        sortBy:
           type: string
           example: "createdAt"
-        order:
+        sortOrder:
           type: string
           example: "DESC"

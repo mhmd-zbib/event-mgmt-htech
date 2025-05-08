@@ -21,7 +21,6 @@ const tagSchema = {
       .nullish()
   }),
   
-  // For querying tags
   query: z.object({
     page: z.string().regex(/^\d+$/, 'Page must be a number').optional(),
     size: z.string().regex(/^\d+$/, 'Size must be a number').optional(),
@@ -33,7 +32,6 @@ const tagSchema = {
     }).optional()
   }),
   
-  // For associating tags with events
   eventTags: z.object({
     tagIds: z.array(
       z.string().refine(val => isValidUUID(val), {

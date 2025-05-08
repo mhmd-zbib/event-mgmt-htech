@@ -1,12 +1,5 @@
 const { ValidationError } = require('../errors/HttpErrors');
 
-/**
- * Validation middleware
- * Validates request data against a schema
- * @param {Object} schema - Zod schema for validation
- * @param {string} source - Data source to validate ('body', 'query', 'params', or 'all')
- * @returns {Function} Express middleware
- */
 const validationMiddleware = (schema, source = 'body') => (req, res, next) => {
   try {
     switch (source) {

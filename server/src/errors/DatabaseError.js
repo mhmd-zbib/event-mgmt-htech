@@ -3,7 +3,6 @@ const { ValidationError, ConflictError, BadRequestError, InternalServerError } =
 const logger = require('../utils/logger');
 
 const handleDatabaseError = (err) => {
-  // Log the original database error for debugging (only in logs)
   logger.error('Database error:', {
     type: err.name,
     message: err.message,
@@ -27,7 +26,6 @@ const handleDatabaseError = (err) => {
   
   if (err instanceof UniqueConstraintError) {
     const field = err.errors[0]?.path || 'field';
-    // Use more generic message without exposing exact field names that might reveal DB structure
     return new ConflictError(`Record already exists`, {
       field,
       message: `A record with this value already exists`
@@ -41,15 +39,11 @@ const handleDatabaseError = (err) => {
     });
   }
   
-  // Handle general database errors
   if (err instanceof DatabaseError) {
-    // Log detailed error but return sanitized message to user
     logger.error('Unexpected database error', { original: err.original });
     return new BadRequestError('Invalid data or operation');
   }
   
-  // For any other database-related errors, convert to internal server error
-  // without leaking implementation details
   if (err.name && err.name.includes('Sequelize')) {
     logger.error('Unhandled Sequelize error', { error: err });
     return new InternalServerError('Database operation failed');

@@ -1,6 +1,7 @@
 const participantService = require('../services/participant.service');
 const { formatMessageResponse, formatItemResponse } = require('../utils/response-formatter');
 const { createParticipantListResponseDto, createParticipantDetailResponseDto } = require('../dto/participant-response.dto');
+const { createParticipantRequestDto, updateParticipantRequestDto } = require('../dto/participant-request.dto');
 const { createEventListResponseDto } = require('../dto/event-response.dto');
 
 class ParticipantController {
@@ -10,7 +11,13 @@ class ParticipantController {
       const userId = req.user.id;
       const registrationData = req.body;
       
-      const participant = await participantService.registerForEvent(eventId, userId, registrationData);
+      const formattedData = createParticipantRequestDto({
+        userId,
+        eventId,
+        ...registrationData
+      });
+      
+      const participant = await participantService.registerForEvent(eventId, userId, formattedData);
       
       // Return a message with a separate link field
       const responseData = {
@@ -96,6 +103,28 @@ class ParticipantController {
         result.sort
       );
       
+      res.status(200).json(responseData);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateParticipantStatus(req, res, next) {
+    try {
+      const { eventId, userId } = req.params;
+      const adminId = req.user.id;
+      const statusData = req.body;
+      
+      const formattedData = updateParticipantRequestDto(statusData);
+      
+      const participant = await participantService.updateParticipantStatus(
+        eventId, 
+        userId, 
+        formattedData, 
+        adminId
+      );
+      
+      const responseData = createParticipantDetailResponseDto(participant);
       res.status(200).json(responseData);
     } catch (error) {
       next(error);

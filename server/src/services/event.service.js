@@ -15,6 +15,7 @@ class EventService {
   async getAllEvents(queryParams = {}) {
     const where = {};
     
+    // Date filters
     if (queryParams.fromDate && isValidDate(queryParams.fromDate)) {
       where.startDate = {
         ...where.startDate,
@@ -29,12 +30,95 @@ class EventService {
       };
     }
     
-    // Add categoryId filter if provided
+    // Category filter
     if (queryParams.categoryId && isValidUUID(queryParams.categoryId)) {
       where.categoryId = queryParams.categoryId;
     }
     
-    // Add tag filter if provided
+    // Event status filter (upcoming, past, ongoing)
+    if (queryParams.status) {
+      const now = new Date();
+      
+      switch(queryParams.status.toLowerCase()) {
+        case 'upcoming':
+          where.startDate = { [Op.gt]: now };
+          break;
+        case 'past':
+          where.endDate = { [Op.lt]: now };
+          break;
+        case 'ongoing':
+          where.startDate = { [Op.lte]: now };
+          where.endDate = { [Op.gte]: now };
+          break;
+      }
+    }
+    
+    // Location filter
+    if (queryParams.location) {
+      where.location = { 
+        [Op.iLike]: `%${queryParams.location}%`
+      };
+    }
+    
+    // Title search
+    if (queryParams.title) {
+      where.title = { 
+        [Op.iLike]: `%${queryParams.title}%`
+      };
+    }
+    
+    // Description search
+    if (queryParams.description) {
+      where.description = { 
+        [Op.iLike]: `%${queryParams.description}%`
+      };
+    }
+    
+    // Combined search for title or description
+    if (queryParams.search) {
+      where[Op.or] = [
+        { title: { [Op.iLike]: `%${queryParams.search}%` } },
+        { description: { [Op.iLike]: `%${queryParams.search}%` } }
+      ];
+    }
+    
+    // Capacity filters
+    if (queryParams.minCapacity && !isNaN(queryParams.minCapacity)) {
+      where.capacity = {
+        ...where.capacity,
+        [Op.gte]: parseInt(queryParams.minCapacity)
+      };
+    }
+    
+    if (queryParams.maxCapacity && !isNaN(queryParams.maxCapacity)) {
+      where.capacity = {
+        ...where.capacity,
+        [Op.lte]: parseInt(queryParams.maxCapacity)
+      };
+    }
+    
+    // Price filters
+    if (queryParams.isFree === 'true') {
+      where.price = 0;
+    } else if (queryParams.isFree === 'false') {
+      where.price = { [Op.gt]: 0 };
+    }
+    
+    if (queryParams.minPrice && !isNaN(queryParams.minPrice)) {
+      where.price = {
+        ...where.price,
+        [Op.gte]: parseFloat(queryParams.minPrice)
+      };
+    }
+    
+    if (queryParams.maxPrice && !isNaN(queryParams.maxPrice)) {
+      where.price = {
+        ...where.price,
+        [Op.lte]: parseFloat(queryParams.maxPrice)
+      };
+    }
+    
+    // Tag filter
     let tagFilter = null;
     if (queryParams.tagId && isValidUUID(queryParams.tagId)) {
       tagFilter = queryParams.tagId;
@@ -42,7 +126,7 @@ class EventService {
     
     return paginatedQuery(Event, {
       queryParams,
-      allowedSortFields: ['title', 'createdAt', 'startDate', 'endDate', 'location'],
+      allowedSortFields: ['title', 'createdAt', 'startDate', 'endDate', 'location', 'price', 'capacity'],
       defaultSortField: 'createdAt',
       where,
       include: [
@@ -59,7 +143,7 @@ class EventService {
         {
           model: Tag,
           as: 'tags',
-          through: { attributes: [] }, // Exclude junction table attributes
+          through: { attributes: [] },
           where: tagFilter ? { id: tagFilter } : undefined,
           required: tagFilter ? true : false
         }
@@ -107,7 +191,7 @@ class EventService {
         {
           model: Tag,
           as: 'tags',
-          through: { attributes: [] } // Exclude junction table attributes
+          through: { attributes: [] }
         }
       ]
     });
@@ -122,7 +206,6 @@ class EventService {
   async createEvent(eventData, adminId) {
     this.validateEventDates(eventData.startDate, eventData.endDate);
 
-    // Validate categoryId if provided
     if (eventData.categoryId) {
       if (!isValidUUID(eventData.categoryId)) {
         throw new BadRequestError('Invalid category ID format. Must be a valid UUID.');
@@ -134,25 +217,20 @@ class EventService {
       }
     }
 
-    // Extract tags from event data before creating the event
     const { tags, ...eventDataWithoutTags } = eventData;
     
-    // Create event
     const event = await Event.create({
       ...eventDataWithoutTags,
       createdBy: adminId
     });
     
-    // Add tags if provided
     if (tags && Array.isArray(tags) && tags.length > 0) {
-      // Validate tagIds
       for (const tagId of tags) {
         if (!isValidUUID(tagId)) {
           throw new BadRequestError(`Invalid tag ID format: ${tagId}`);
         }
       }
       
-      // Check if all tags exist
       const existingTags = await Tag.findAll({
         where: {
           id: {
@@ -167,11 +245,9 @@ class EventService {
         throw new NotFoundError(`The following tags do not exist: ${missingIds.join(', ')}`);
       }
       
-      // Associate tags with the event
       await event.addTags(existingTags);
     }
     
-    // Return the event with all associations
     return this.getEventById(event.id);
   }
 
@@ -202,7 +278,6 @@ class EventService {
       }
     }
 
-    // Validate categoryId if provided
     if (eventData.categoryId) {
       if (!isValidUUID(eventData.categoryId)) {
         throw new BadRequestError('Invalid category ID format. Must be a valid UUID.');
@@ -214,21 +289,17 @@ class EventService {
       }
     }
     
-    // Extract tags from event data before updating the event
     const { tags, ...eventDataWithoutTags } = eventData;
 
     await event.update(eventDataWithoutTags);
     
-    // Update tags if provided
     if (tags && Array.isArray(tags)) {
-      // Validate tagIds
       for (const tagId of tags) {
         if (!isValidUUID(tagId)) {
           throw new BadRequestError(`Invalid tag ID format: ${tagId}`);
         }
       }
       
-      // Check if all tags exist
       const existingTags = await Tag.findAll({
         where: {
           id: {
@@ -243,16 +314,13 @@ class EventService {
         throw new NotFoundError(`The following tags do not exist: ${missingIds.join(', ')}`);
       }
       
-      // Replace existing tags with the new set
       await event.setTags(existingTags);
     }
     
-    // Get the updated event with all associations
     return this.getEventById(eventId);
   }
 
   async setEventCategory(eventId, categoryId, adminId) {
-    // Validate input
     if (!isValidUUID(eventId)) {
       throw new BadRequestError('Invalid event ID format. Must be a valid UUID.');
     }
@@ -261,24 +329,19 @@ class EventService {
       throw new BadRequestError('Invalid category ID format. Must be a valid UUID.');
     }
     
-    // Get the event and check if it exists
     const event = await this.getEventById(eventId);
     
-    // Check if user has permission to update the event
     if (event.createdBy !== adminId) {
       throw new ForbiddenError('You can only update events you created');
     }
     
-    // Check if the category exists
     const categoryExists = await Category.findByPk(categoryId);
     if (!categoryExists) {
       throw new BadRequestError('The specified category does not exist.');
     }
     
-    // Update the event's category
     await event.update({ categoryId });
     
-    // Get the updated event with all associations
     return this.getEventById(eventId);
   }
 

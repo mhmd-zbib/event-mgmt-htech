@@ -7,17 +7,16 @@ const logger = require('../utils/logger');
 class AuthService {
   async register(userData) {
     const user = await userService.createUser(userData);
-    const token = this.generateToken(user);
+    const tokens = this.generateTokens(user);
     
     logger.info('User registered successfully', {
       userId: user.id,
-      email: user.email.substring(0, 3) + '***' // Log partial email for audit, not full email
+      email: user.email.substring(0, 3) + '***'
     });
     
-    // Don't return sensitive user data in the response
     const sanitizedUser = this.sanitizeUserForResponse(user);
     
-    return { user: sanitizedUser, token };
+    return { user: sanitizedUser, token: tokens };
   }
 
   async login(credentials) {
@@ -29,8 +28,6 @@ class AuthService {
 
     const user = await userService.getUserByEmail(email);
     
-    // Use consistent error message for all authentication failures
-    // to prevent user enumeration attacks
     const authFailureMessage = 'Invalid credentials';
     
     if (!user) {
@@ -59,34 +56,49 @@ class AuthService {
 
     await userService.updateLastLogin(user);
     
-    const token = this.generateToken(user);
+    const tokens = this.generateTokens(user);
     
     logger.info('User logged in successfully', {
       userId: user.id,
       maskedEmail: email.substring(0, 3) + '***'
     });
     
-    // Don't return sensitive user data in the response
     const sanitizedUser = this.sanitizeUserForResponse(user);
     
-    return { user: sanitizedUser, token };
+    return { user: sanitizedUser, token: tokens };
   }
 
-  generateToken(user) {
+  generateTokens(user) {
     const payload = {
       id: user.id,
       email: user.email,
       role: user.role
     };
 
-    return jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn || '1d'
+    // Generate access token
+    const accessToken = jwt.sign(payload, config.jwt.secret, {
+      expiresIn: config.jwt.expiresIn || '1h'
     });
+
+    // Generate refresh token with longer expiration
+    const refreshToken = jwt.sign(payload, config.jwt.refreshSecret || config.jwt.secret, {
+      expiresIn: config.jwt.refreshExpiresIn || '7d'
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: 3600 // 1 hour in seconds
+    };
   }
 
-  verifyToken(token) {
+  verifyToken(token, isRefreshToken = false) {
     try {
-      return jwt.verify(token, config.jwt.secret);
+      const secret = isRefreshToken ? 
+        (config.jwt.refreshSecret || config.jwt.secret) : 
+        config.jwt.secret;
+        
+      return jwt.verify(token, secret);
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
         throw new UnauthorizedError('Token has expired');
@@ -100,23 +112,26 @@ class AuthService {
       throw new BadRequestError('Refresh token is required');
     }
     
-    const decoded = this.verifyToken(refreshToken);
+    // Verify refresh token specifically
+    const decoded = this.verifyToken(refreshToken, true);
     
     const user = await userService.getUserById(decoded.id);
     
-    const newToken = this.generateToken(user);
+    if (!user || user.isActive === false) {
+      throw new UnauthorizedError('Invalid refresh token');
+    }
     
-    // Don't return sensitive user data in the response
+    // Generate new tokens
+    const tokens = this.generateTokens(user);
+    
     const sanitizedUser = this.sanitizeUserForResponse(user);
     
-    return { user: sanitizedUser, token: newToken };
+    return { user: sanitizedUser, token: tokens };
   }
   
-  // Helper method to sanitize user data for responses
   sanitizeUserForResponse(user) {
     const userData = user.toJSON ? user.toJSON() : { ...user };
     
-    // Remove sensitive fields
     const sensitiveFields = ['password', 'resetToken', 'resetTokenExpires'];
     sensitiveFields.forEach(field => {
       if (userData[field]) delete userData[field];

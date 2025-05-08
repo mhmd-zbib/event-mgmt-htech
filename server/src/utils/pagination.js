@@ -37,17 +37,6 @@ const processPaginationParams = (
   };
 };
 
-/**
- * Creates pagination metadata for API responses
- * Now includes HATEOAS links for better RESTful compliance
- * 
- * @param {number} totalItems - Total number of items
- * @param {Object} options - Pagination options
- * @param {number} options.page - Current page number
- * @param {number} options.size - Items per page
- * @param {string} options.baseUrl - Base URL for HATEOAS links (optional)
- * @returns {Object} Pagination metadata with HATEOAS links
- */
 const createPaginationMeta = (totalItems, options) => {
   const { page, size, baseUrl } = options;
   const totalPages = Math.ceil(totalItems / size);
@@ -59,28 +48,22 @@ const createPaginationMeta = (totalItems, options) => {
     totalPages
   };
   
-  // Add HATEOAS links if a baseUrl was provided
   if (baseUrl) {
     const query = new URLSearchParams();
     query.append('size', size);
     
     const links = {};
     
-    // Current page
     links.self = `${baseUrl}?page=${page}&${query.toString()}`;
     
-    // First page
     links.first = `${baseUrl}?page=1&${query.toString()}`;
     
-    // Last page
     links.last = `${baseUrl}?page=${totalPages}&${query.toString()}`;
     
-    // Previous page (if not on first page)
     if (page > 1) {
       links.prev = `${baseUrl}?page=${page - 1}&${query.toString()}`;
     }
     
-    // Next page (if not on last page)
     if (page < totalPages) {
       links.next = `${baseUrl}?page=${page + 1}&${query.toString()}`;
     }
@@ -91,19 +74,6 @@ const createPaginationMeta = (totalItems, options) => {
   return meta;
 };
 
-/**
- * Executes a paginated query using Sequelize's findAndCountAll
- * 
- * @param {Object} model - Sequelize model to query
- * @param {Object} options - Query options
- * @param {Object} options.queryParams - Raw query parameters from request
- * @param {Array} options.allowedSortFields - Fields that can be used for sorting
- * @param {string} options.defaultSortField - Default field to sort by
- * @param {Object} options.where - Where clause for the query
- * @param {Array} options.include - Associations to include
- * @param {string} options.resultKey - Key to use for the results in the returned object
- * @returns {Object} Results with pagination metadata
- */
 const paginatedQuery = async (model, options) => {
   const {
     queryParams = {},
@@ -114,14 +84,12 @@ const paginatedQuery = async (model, options) => {
     resultKey = 'items'
   } = options;
 
-  // Process pagination parameters
   const paginationOptions = processPaginationParams(
     queryParams,
     allowedSortFields,
     defaultSortField
   );
   
-  // Execute the query
   const { count, rows: results } = await model.findAndCountAll({
     where,
     include,
@@ -130,10 +98,8 @@ const paginatedQuery = async (model, options) => {
     order: [[paginationOptions.sortBy, paginationOptions.sortOrder]]
   });
   
-  // Create pagination metadata
   const meta = createPaginationMeta(count, paginationOptions);
   
-  // Return results with the specified key and pagination metadata
   return {
     [resultKey]: results,
     ...meta

@@ -2,7 +2,6 @@ const authService = require('../services/auth.service');
 const userService = require('../services/user.service');
 const { UnauthorizedError, NotFoundError } = require('../errors/HttpErrors');
 const logger = require('../utils/logger');
-const { log } = require('winston');
 
 
 module.exports = (options = {}) => async (req, res, next) => {
@@ -18,7 +17,8 @@ module.exports = (options = {}) => async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = authService.verifyToken(token);
+    // Verify as an access token, not a refresh token
+    const decoded = authService.verifyToken(token, false);
     
     const user = await userService.getUserById(decoded.id);
     

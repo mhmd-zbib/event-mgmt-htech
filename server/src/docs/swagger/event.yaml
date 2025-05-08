@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Event API
+  title: Events API
   version: 1.0.0
   description: API endpoints for event management
 
@@ -10,39 +10,70 @@ paths:
       tags:
         - Events
       summary: Get all events
-      description: Retrieve a paginated list of events
-      security:
-        - bearerAuth: []
+      description: Retrieve a paginated list of events with filtering options
       parameters:
-        - in: query
-          name: page
+        - name: page
+          in: query
+          description: Page number for pagination
           schema:
             type: integer
             default: 1
-          description: Page number for pagination
-        - in: query
-          name: size
+        - name: size
+          in: query
+          description: Number of items per page
           schema:
             type: integer
             default: 10
-          description: Number of items per page
-        - in: query
-          name: sortBy
+        - name: sortBy
+          in: query
+          description: Field to sort by
           schema:
             type: string
-            enum: [title, startDate, endDate, createdAt]
+            enum: [title, startDate, endDate, location, createdAt]
             default: startDate
-          description: Field to sort by
-        - in: query
-          name: sortOrder
+        - name: sortOrder
+          in: query
+          description: Sort order
           schema:
             type: string
             enum: [ASC, DESC, asc, desc]
             default: ASC
-          description: Sort order (ascending or descending)
+        - name: search
+          in: query
+          description: Search in title and description
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          description: Filter by category ID
+          schema:
+            type: string
+            format: uuid
+        - name: tags
+          in: query
+          description: Filter by tags (comma-separated tag IDs)
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          description: Filter events that start on or after this date
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter events that end on or before this date
+          schema:
+            type: string
+            format: date
+        - name: location
+          in: query
+          description: Filter by location
+          schema:
+            type: string
       responses:
         '200':
-          description: List of events
+          description: Events retrieved successfully
           content:
             application/json:
               schema:
@@ -51,39 +82,13 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Event'
+                      $ref: '#/components/schemas/EventSummary'
                   pagination:
-                    type: object
-                    properties:
-                      total:
-                        type: integer
-                        example: 50
-                      page:
-                        type: integer
-                        example: 1
-                      size:
-                        type: integer
-                        example: 10
-                      totalPages:
-                        type: integer
-                        example: 5
-                      hasNext:
-                        type: boolean
-                        example: true
-                      hasPrevious:
-                        type: boolean
-                        example: false
+                    $ref: '#/components/schemas/Pagination'
                   sort:
-                    type: object
-                    properties:
-                      sortBy:
-                        type: string
-                        example: "startDate"
-                      sortOrder:
-                        type: string
-                        example: "ASC"
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
+                    $ref: '#/components/schemas/Sort'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
     
@@ -91,7 +96,7 @@ paths:
       tags:
         - Events
       summary: Create a new event
-      description: Create a new event (admin only)
+      description: Create a new event (requires authentication)
       security:
         - bearerAuth: []
       requestBody:
@@ -99,33 +104,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - title
-                - startDate
-                - endDate
-              properties:
-                title:
-                  type: string
-                  example: "Web Development Workshop"
-                description:
-                  type: string
-                  example: "Hands-on workshop for modern web development"
-                location:
-                  type: string
-                  example: "Tech Campus, Room 101"
-                startDate:
-                  type: string
-                  format: date-time
-                  example: "2025-06-01T09:00:00Z"
-                endDate:
-                  type: string
-                  format: date-time
-                  example: "2025-06-01T17:00:00Z"
-                categoryId:
-                  type: string
-                  format: uuid
-                  example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+              $ref: '#/components/schemas/CreateEventRequest'
       responses:
         '201':
           description: Event created successfully
@@ -137,19 +116,12 @@ paths:
                   message:
                     type: string
                     example: "Event created successfully"
-                  link:
-                    type: string
-                    example: "/events/f47ac10b-58cc-4372-a567-0e02b2c3d480"
+                  event:
+                    $ref: '#/components/schemas/EventDetail'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          description: Forbidden - Admin access required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -158,29 +130,25 @@ paths:
       tags:
         - Events
       summary: Get event by ID
-      description: Retrieve a specific event by its ID
-      security:
-        - bearerAuth: []
+      description: Retrieve a specific event by ID
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
+          description: Event ID
           schema:
             type: string
             format: uuid
-          description: UUID of the event to retrieve
       responses:
         '200':
-          description: Event details
+          description: Event retrieved successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   event:
-                    $ref: '#/components/schemas/Event'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
+                    $ref: '#/components/schemas/EventDetail'
         '404':
           $ref: '#/components/responses/NotFoundError'
         '500':
@@ -189,46 +157,24 @@ paths:
     put:
       tags:
         - Events
-      summary: Update an event
-      description: Update an existing event (admin only)
+      summary: Update event
+      description: Update a specific event (requires authentication and authorization)
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
+          description: Event ID
           schema:
             type: string
             format: uuid
-          description: UUID of the event to update
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                title:
-                  type: string
-                  example: "Updated Web Development Workshop"
-                description:
-                  type: string
-                  example: "Updated description for the workshop"
-                location:
-                  type: string
-                  example: "Updated location: Tech Campus, Room 202"
-                startDate:
-                  type: string
-                  format: date-time
-                  example: "2025-06-02T10:00:00Z"
-                endDate:
-                  type: string
-                  format: date-time
-                  example: "2025-06-02T18:00:00Z"
-                categoryId:
-                  type: string
-                  format: uuid
-                  example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+              $ref: '#/components/schemas/UpdateEventRequest'
       responses:
         '200':
           description: Event updated successfully
@@ -239,19 +185,15 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Event updated successfully
+                    example: "Event updated successfully"
                   event:
-                    $ref: '#/components/schemas/Event'
+                    $ref: '#/components/schemas/EventDetail'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: Forbidden - Admin access required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
         '500':
@@ -260,18 +202,18 @@ paths:
     delete:
       tags:
         - Events
-      summary: Delete an event
-      description: Delete an event by ID (admin only)
+      summary: Delete event
+      description: Delete a specific event (requires authentication and authorization)
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
+          description: Event ID
           schema:
             type: string
             format: uuid
-          description: UUID of the event to delete
       responses:
         '200':
           description: Event deleted successfully
@@ -282,46 +224,80 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Event deleted successfully
+                    example: "Event deleted successfully"
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: Forbidden - Admin access required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /events/{eventId}/categories/{categoryId}:
-    patch:
+  /events/{id}/tags:
+    get:
       tags:
         - Events
-      summary: Set a category for an event
-      description: Associate an event with a specific category (admin only)
+      summary: Get event tags
+      description: Retrieve all tags for a specific event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Event ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tags retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Events
+      summary: Add tags to event
+      description: Add one or more tags to a specific event (requires authentication and authorization)
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: eventId
+        - name: id
+          in: path
           required: true
+          description: Event ID
           schema:
             type: string
             format: uuid
-          description: UUID of the event
-        - in: path
-          name: categoryId
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: UUID of the category to associate with the event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tagIds
+              properties:
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["t47ac10b-58cc-4372-a567-0e02b2c3d000", "t47ac10b-58cc-4372-a567-0e02b2c3d001"]
       responses:
         '200':
-          description: Event category set successfully
+          description: Tags added successfully
           content:
             application/json:
               schema:
@@ -329,43 +305,213 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Category set successfully"
-                  link:
-                    type: string
-                    example: "/events/f47ac10b-58cc-4372-a456-426614174000"
+                    example: "Tags added successfully"
+                  tags:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
-          description: Forbidden - Admin access required
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Events
+      summary: Remove tags from event
+      description: Remove one or more tags from a specific event (requires authentication and authorization)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Event ID
+          schema:
+            type: string
+            format: uuid
+        - name: tagIds
+          in: query
+          required: true
+          description: Comma-separated list of tag IDs to remove
+          schema:
+            type: string
+            example: "t47ac10b-58cc-4372-a567-0e02b2c3d000,t47ac10b-58cc-4372-a567-0e02b2c3d001"
+      responses:
+        '200':
+          description: Tags removed successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Tags removed successfully"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /events/{id}/participants:
+    get:
+      tags:
+        - Events
+      summary: Get event participants
+      description: Retrieve all participants for a specific event (requires authentication and authorization)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Event ID
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 10
+        - name: sortBy
+          in: query
+          description: Field to sort by
+          schema:
+            type: string
+            enum: [registrationDate, status, lastName, firstName, email]
+            default: registrationDate
+        - name: sortOrder
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [ASC, DESC, asc, desc]
+            default: DESC
+        - name: status
+          in: query
+          description: Filter by participation status
+          schema:
+            type: string
+            enum: [registered, attended, cancelled, waitlisted]
+      responses:
+        '200':
+          description: Participants retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EventParticipant'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                  sort:
+                    $ref: '#/components/schemas/Sort'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/featured:
+    get:
+      tags:
+        - Events
+      summary: Get featured events
+      description: Retrieve a list of featured events
+      responses:
+        '200':
+          description: Featured events retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EventSummary'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/upcoming:
+    get:
+      tags:
+        - Events
+      summary: Get upcoming events
+      description: Retrieve a list of upcoming events
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of events to return
+          schema:
+            type: integer
+            default: 5
+        - name: categoryId
+          in: query
+          description: Filter by category ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Upcoming events retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EventSummary'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 components:
   schemas:
-    Event:
+    CreateEventRequest:
       type: object
+      required:
+        - title
+        - description
+        - startDate
+        - endDate
+        - categoryId
       properties:
-        id:
-          type: string
-          format: uuid
-          example: "f47ac10b-58cc-4372-a567-0e02b2c3d480"
         title:
           type: string
           example: "Web Development Workshop"
         description:
           type: string
-          example: "Hands-on workshop for modern web development"
-        location:
-          type: string
-          example: "Tech Campus, Room 101"
+          example: "Learn the fundamentals of modern web development."
         startDate:
           type: string
           format: date-time
@@ -377,24 +523,275 @@ components:
         categoryId:
           type: string
           format: uuid
-          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-        createdBy:
+          example: "c47ac10b-58cc-4372-a567-0e02b2c3d000"
+        location:
+          type: string
+          example: "Tech Campus, Room 101"
+        capacity:
+          type: integer
+          example: 50
+        isFeatured:
+          type: boolean
+          example: false
+        imageUrl:
+          type: string
+          format: uri
+          example: "https://example.com/images/webdev-workshop.jpg"
+        tagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          example: ["t47ac10b-58cc-4372-a567-0e02b2c3d000", "t47ac10b-58cc-4372-a567-0e02b2c3d001"]
+
+    UpdateEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Advanced Web Development Workshop"
+        description:
+          type: string
+          example: "Take your web development skills to the next level."
+        startDate:
+          type: string
+          format: date-time
+          example: "2025-06-01T10:00:00Z"
+        endDate:
+          type: string
+          format: date-time
+          example: "2025-06-01T18:00:00Z"
+        categoryId:
           type: string
           format: uuid
-          example: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
+          example: "c47ac10b-58cc-4372-a567-0e02b2c3d001"
+        location:
+          type: string
+          example: "Tech Campus, Room 102"
+        capacity:
+          type: integer
+          example: 60
+        isFeatured:
+          type: boolean
+          example: true
+        imageUrl:
+          type: string
+          format: uri
+          example: "https://example.com/images/advanced-webdev-workshop.jpg"
+
+    EventSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "e47ac10b-58cc-4372-a567-0e02b2c3d000"
+        title:
+          type: string
+          example: "Web Development Workshop"
+        startDate:
+          type: string
+          format: date-time
+          example: "2025-06-01T09:00:00Z"
+        endDate:
+          type: string
+          format: date-time
+          example: "2025-06-01T17:00:00Z"
+        location:
+          type: string
+          example: "Tech Campus, Room 101"
+        capacity:
+          type: integer
+          example: 50
+        registrationCount:
+          type: integer
+          example: 35
+        isFeatured:
+          type: boolean
+          example: false
+        imageUrl:
+          type: string
+          format: uri
+          example: "https://example.com/images/webdev-workshop.jpg"
+        category:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "c47ac10b-58cc-4372-a567-0e02b2c3d000"
+            name:
+              type: string
+              example: "Technology"
         createdAt:
           type: string
           format: date-time
-          example: "2025-05-05T10:30:00Z"
+          example: "2025-05-01T14:20:00Z"
+        status:
+          type: string
+          enum: [upcoming, ongoing, past, cancelled]
+          example: "upcoming"
+
+    EventDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "e47ac10b-58cc-4372-a567-0e02b2c3d000"
+        title:
+          type: string
+          example: "Web Development Workshop"
+        description:
+          type: string
+          example: "Learn the fundamentals of modern web development."
+        startDate:
+          type: string
+          format: date-time
+          example: "2025-06-01T09:00:00Z"
+        endDate:
+          type: string
+          format: date-time
+          example: "2025-06-01T17:00:00Z"
+        location:
+          type: string
+          example: "Tech Campus, Room 101"
+        capacity:
+          type: integer
+          example: 50
+        registrationCount:
+          type: integer
+          example: 35
+        availableSeats:
+          type: integer
+          example: 15
+        isFeatured:
+          type: boolean
+          example: false
+        imageUrl:
+          type: string
+          format: uri
+          example: "https://example.com/images/webdev-workshop.jpg"
+        category:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "c47ac10b-58cc-4372-a567-0e02b2c3d000"
+            name:
+              type: string
+              example: "Technology"
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        organizer:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
+            firstName:
+              type: string
+              example: "John"
+            lastName:
+              type: string
+              example: "Doe"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-05-01T14:20:00Z"
         updatedAt:
           type: string
           format: date-time
           example: "2025-05-05T10:30:00Z"
-        category:
-          $ref: '#/components/schemas/Category'
-        creator:
-          $ref: '#/components/schemas/User'
-    
+        status:
+          type: string
+          enum: [upcoming, ongoing, past, cancelled]
+          example: "upcoming"
+        isRegistered:
+          type: boolean
+          example: false
+        userParticipation:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "p47ac10b-58cc-4372-a567-0e02b2c3d000"
+            status:
+              type: string
+              enum: [registered, attended, cancelled, waitlisted]
+              example: "registered"
+            registrationDate:
+              type: string
+              format: date-time
+              example: "2025-05-15T14:30:00Z"
+            checkedIn:
+              type: boolean
+              example: false
+
+    EventParticipant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "p47ac10b-58cc-4372-a567-0e02b2c3d000"
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
+            firstName:
+              type: string
+              example: "John"
+            lastName:
+              type: string
+              example: "Doe"
+            email:
+              type: string
+              format: email
+              example: "john.doe@example.com"
+        status:
+          type: string
+          enum: [registered, attended, cancelled, waitlisted]
+          example: "registered"
+        registrationDate:
+          type: string
+          format: date-time
+          example: "2025-05-15T14:30:00Z"
+        checkedIn:
+          type: boolean
+          example: false
+        checkedInAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        ticketCode:
+          type: string
+          example: "TICKET-123-XYZ"
+
+    Tag:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "t47ac10b-58cc-4372-a567-0e02b2c3d000"
+        name:
+          type: string
+          example: "javascript"
+        color:
+          type: string
+          example: "#F7DF1E"
+        
     Pagination:
       type: object
       properties:
@@ -416,7 +813,7 @@ components:
         hasPrevious:
           type: boolean
           example: false
-    
+          
     Sort:
       type: object
       properties:

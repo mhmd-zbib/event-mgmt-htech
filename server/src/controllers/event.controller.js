@@ -1,16 +1,16 @@
 const eventService = require('../services/event.service');
 const eventResponseDto = require('../dto/event-response.dto');
-const { formatPaginatedResponse, formatItemResponse, formatMessageResponse } = require('../utils/response-formatter');
+const eventRequestDto = require('../dto/event-request.dto');
+const { formatMessageResponse } = require('../utils/response-formatter');
 
 class EventController {
   async getAllEvents(req, res, next) {
     const result = await eventService.getAllEvents(req.query);
     
-    const responseData = formatPaginatedResponse(
+    const responseData = eventResponseDto.createEventListResponseDto(
       result.events,
       result.pagination,
-      result.sort,
-      eventResponseDto.mapEventForList
+      result.sort
     );
     
     res.status(200).json(responseData);
@@ -21,7 +21,7 @@ class EventController {
     
     const event = await eventService.getEventById(id);
     
-    const responseData = formatItemResponse(event, 'event');
+    const responseData = eventResponseDto.createEventDetailResponseDto(event);
     
     res.status(200).json(responseData);
   }
@@ -30,7 +30,8 @@ class EventController {
     const eventData = req.validatedData || req.body;
     const adminId = req.user.id;
     
-    const event = await eventService.createEvent(eventData, adminId);
+    const formattedData = eventRequestDto.createEventRequestDto(eventData);
+    const event = await eventService.createEvent(formattedData, adminId);
     
     // Return a message with a separate link field
     const responseData = {
@@ -46,9 +47,10 @@ class EventController {
     const eventData = req.validatedData || req.body;
     const adminId = req.user.id;
     
-    const event = await eventService.updateEvent(id, eventData, adminId);
+    const formattedData = eventRequestDto.updateEventRequestDto(eventData);
+    const event = await eventService.updateEvent(id, formattedData, adminId);
     
-    const responseData = formatItemResponse(event, 'event');
+    const responseData = eventResponseDto.createEventDetailResponseDto(event);
     
     res.status(200).json(responseData);
   }

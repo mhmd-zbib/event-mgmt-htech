@@ -1,12 +1,14 @@
 const categoryService = require('../services/category.service');
 const eventResponseDto = require('../dto/event-response.dto');
-const { formatPaginatedResponse, formatItemResponse, formatMessageResponse } = require('../utils/response-formatter');
+const categoryResponseDto = require('../dto/category-response.dto');
+const categoryRequestDto = require('../dto/category-request.dto');
+const { formatMessageResponse } = require('../utils/response-formatter');
 
 class CategoryController {
   async getAllCategories(req, res, next) {
     const result = await categoryService.getAllCategories(req.query);
     
-    const responseData = formatPaginatedResponse(
+    const responseData = categoryResponseDto.createCategoryListResponseDto(
       result.categories,
       result.pagination,
       result.sort
@@ -20,7 +22,7 @@ class CategoryController {
     
     const category = await categoryService.getCategoryById(id);
     
-    const responseData = formatItemResponse(category, 'category');
+    const responseData = categoryResponseDto.createCategoryDetailResponseDto(category);
     
     res.status(200).json(responseData);
   }
@@ -29,9 +31,10 @@ class CategoryController {
     const categoryData = req.validatedData || req.body;
     const adminId = req.user.id;
     
-    const category = await categoryService.createCategory(categoryData, adminId);
+    const formattedData = categoryRequestDto.createCategoryRequestDto(categoryData);
+    const category = await categoryService.createCategory(formattedData, adminId);
     
-    const responseData = formatItemResponse(category, 'category');
+    const responseData = categoryResponseDto.createCategoryDetailResponseDto(category);
     
     res.status(201).json(responseData);
   }
@@ -41,9 +44,10 @@ class CategoryController {
     const categoryData = req.validatedData || req.body;
     const adminId = req.user.id;
     
-    const category = await categoryService.updateCategory(id, categoryData, adminId);
+    const formattedData = categoryRequestDto.updateCategoryRequestDto(categoryData);
+    const category = await categoryService.updateCategory(id, formattedData, adminId);
     
-    const responseData = formatItemResponse(category, 'category');
+    const responseData = categoryResponseDto.createCategoryDetailResponseDto(category);
     
     res.status(200).json(responseData);
   }
@@ -64,11 +68,10 @@ class CategoryController {
     
     const result = await categoryService.getEventsByCategoryId(id, req.query);
     
-    const responseData = formatPaginatedResponse(
+    const responseData = eventResponseDto.createEventListResponseDto(
       result.events,
       result.pagination,
-      result.sort,
-      eventResponseDto.mapEventForList
+      result.sort
     );
     
     res.status(200).json(responseData);

@@ -1,8 +1,3 @@
-/**
- * Event Response DTOs
- * Responsible for structuring event response data
- */
-
 const { formatPaginatedResponse, formatItemResponse } = require('../utils/response-formatter');
 
 const mapEventForList = (event) => ({
@@ -17,7 +12,6 @@ const createEventListResponseDto = (events, pagination, sort) => {
 };
 
 const createEventDetailResponseDto = (event) => {
-  // Using formatItemResponse which now returns the item directly
   return formatItemResponse(event);
 };
 

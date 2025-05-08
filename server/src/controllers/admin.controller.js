@@ -1,16 +1,16 @@
 const userService = require('../services/user.service');
 const userResponseDto = require('../dto/user-response.dto');
-const { formatPaginatedResponse, formatItemResponse, formatMessageResponse } = require('../utils/response-formatter');
+const adminRequestDto = require('../dto/admin-request.dto');
+const { formatMessageResponse } = require('../utils/response-formatter');
 
 class AdminController {
   async getAllUsers(req, res, next) {
     const result = await userService.getAllUsers(req.query);
     
-    const responseData = formatPaginatedResponse(
+    const responseData = userResponseDto.createUserListResponseDto(
       result.users,
       result.pagination,
-      result.sort,
-      userResponseDto.mapUserForList
+      result.sort
     );
     
     res.status(200).json(responseData);
@@ -21,18 +21,19 @@ class AdminController {
     
     const user = await userService.getUserById(id);
     
-    const responseData = formatItemResponse(user, 'user');
+    const responseData = userResponseDto.createUserProfileResponseDto(user);
     
     res.status(200).json(responseData);
   }
 
   async updateUserRole(req, res, next) {
     const { id } = req.params;
-    const { role } = req.body;
+    const roleData = req.validatedData || req.body;
     
-    const user = await userService.updateUserRole(id, role);
+    const formattedData = adminRequestDto.updateUserRoleRequestDto(roleData);
+    const user = await userService.updateUserRole(id, formattedData.role);
     
-    const responseData = formatItemResponse(user, 'user');
+    const responseData = userResponseDto.createUserProfileResponseDto(user);
     
     res.status(200).json(responseData);
   }

@@ -14,6 +14,7 @@ info:
     * **Category organization** - Organize events by categories
     * **Tagging system** - Add multiple tags to events for better searchability
     * **Participant management** - Register for events and track attendance
+    * **Admin analytics** - Dashboard and detailed analytics for administrators
     
     ## Authentication
     
@@ -53,6 +54,8 @@ tags:
     description: Register for events and manage participation
   - name: Tags
     description: Create and manage tags for events
+  - name: Analytics
+    description: Dashboard analytics and reporting for administrators
 
 components:
   securitySchemes:

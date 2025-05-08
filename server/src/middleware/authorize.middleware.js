@@ -1,14 +1,6 @@
 const { ForbiddenError, UnauthorizedError } = require('../errors/HttpErrors');
 const logger = require('../utils/logger');
 
-/**
- * Authorization middleware
- * Checks if authenticated user has the required role or passes custom checks
- * @param {Object|string|Array} options - Role(s) or options object
- * @param {string|Array} options.roles - Required role(s)
- * @param {Function} options.customCheck - Custom authorization check function
- * @returns {Function} Express middleware
- */
 const authorize = (options) => {
   if (typeof options === 'string' || Array.isArray(options)) {
     options = { roles: options };

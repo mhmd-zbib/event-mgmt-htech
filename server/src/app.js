@@ -25,7 +25,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from the public directory
 app.use('/public', express.static(path.join(__dirname, '../public')));
 
 app.use(rateLimiter({
@@ -33,10 +32,8 @@ app.use(rateLimiter({
   maxRequests: 100,
 }));
 
-// Serve Swagger UI documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 
-// Routes to export Swagger documentation in different formats
 app.get('/api-docs.json', (req, res) => {
   const jsonDocs = exportSwaggerDocs('json');
   res.setHeader('Content-Type', 'application/json');
@@ -51,7 +48,6 @@ app.get('/api-docs.yaml', (req, res) => {
   res.send(yamlDocs);
 });
 
-// Request logging middleware
 app.use((req, res, next) => {
   const startTime = Date.now();
   logger.info(`${req.method} ${req.originalUrl}`, {

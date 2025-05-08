@@ -1,0 +1,480 @@
+openapi: 3.0.3
+info:
+  title: Analytics API
+  version: 1.0.0
+  description: API endpoints for event and user analytics
+
+paths:
+  /analytics/events:
+    get:
+      tags:
+        - Analytics
+      summary: Get event analytics
+      description: Retrieve analytics data about events (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          description: Filter by start date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter by end date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: categoryId
+          in: query
+          description: Filter by category ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/EventAnalytics'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /analytics/users:
+    get:
+      tags:
+        - Analytics
+      summary: Get user analytics
+      description: Retrieve analytics data about users (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          description: Filter by start date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter by end date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: User analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserAnalytics'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /analytics/participants:
+    get:
+      tags:
+        - Analytics
+      summary: Get participant analytics
+      description: Retrieve analytics data about event participants (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          description: Filter by start date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter by end date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: eventId
+          in: query
+          description: Filter by event ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Participant analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ParticipantAnalytics'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /analytics/events/{id}:
+    get:
+      tags:
+        - Analytics
+      summary: Get analytics for a specific event
+      description: Retrieve detailed analytics data for a specific event (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Event ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DetailedEventAnalytics'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Forbidden - Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    EventAnalytics:
+      type: object
+      properties:
+        totalEvents:
+          type: integer
+          example: 75
+        eventsByStatus:
+          type: object
+          properties:
+            upcoming:
+              type: integer
+              example: 25
+            ongoing:
+              type: integer
+              example: 3
+            past:
+              type: integer
+              example: 47
+        eventsByCategory:
+          type: array
+          items:
+            type: object
+            properties:
+              categoryId:
+                type: string
+                format: uuid
+                example: "c47ac10b-58cc-4372-a567-0e02b2c3d000"
+              categoryName:
+                type: string
+                example: "Technology"
+              count:
+                type: integer
+                example: 30
+        eventsByMonth:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+                example: "2025-05"
+              count:
+                type: integer
+                example: 12
+        mostPopularEvents:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "e47ac10b-58cc-4372-a567-0e02b2c3d000"
+              title:
+                type: string
+                example: "Web Development Workshop"
+              participantCount:
+                type: integer
+                example: 120
+              registrationRate:
+                type: number
+                format: float
+                example: 0.8
+              capacity:
+                type: integer
+                example: 150
+        averageCapacity:
+          type: number
+          format: float
+          example: 75.5
+        averageRegistrationRate:
+          type: number
+          format: float
+          example: 0.72
+        
+    UserAnalytics:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+          example: 450
+        usersByRole:
+          type: object
+          properties:
+            admin:
+              type: integer
+              example: 5
+            user:
+              type: integer
+              example: 445
+        usersByStatus:
+          type: object
+          properties:
+            active:
+              type: integer
+              example: 420
+            inactive:
+              type: integer
+              example: 30
+        userSignupsByMonth:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+                example: "2025-05"
+              count:
+                type: integer
+                example: 45
+        mostActiveUsers:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
+              email:
+                type: string
+                example: "user@example.com"
+              eventParticipationCount:
+                type: integer
+                example: 12
+              eventCreationCount:
+                type: integer
+                example: 5
+        averageEventsPerUser:
+          type: number
+          format: float
+          example: 2.7
+        loginActivity:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+                example: "2025-05-05"
+              count:
+                type: integer
+                example: 123
+    
+    ParticipantAnalytics:
+      type: object
+      properties:
+        totalParticipants:
+          type: integer
+          example: 1230
+        participantsByStatus:
+          type: object
+          properties:
+            registered:
+              type: integer
+              example: 850
+            attended:
+              type: integer
+              example: 780
+            cancelled:
+              type: integer
+              example: 120
+            waitlisted:
+              type: integer
+              example: 60
+        participantsByEvent:
+          type: array
+          items:
+            type: object
+            properties:
+              eventId:
+                type: string
+                format: uuid
+                example: "e47ac10b-58cc-4372-a567-0e02b2c3d000"
+              title:
+                type: string
+                example: "Web Development Workshop"
+              participantCount:
+                type: integer
+                example: 120
+              attendanceRate:
+                type: number
+                format: float
+                example: 0.85
+        participantsByMonth:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+                example: "2025-05"
+              count:
+                type: integer
+                example: 350
+        averageAttendanceRate:
+          type: number
+          format: float
+          example: 0.78
+        averageCancellationRate:
+          type: number
+          format: float
+          example: 0.12
+    
+    DetailedEventAnalytics:
+      type: object
+      properties:
+        event:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "e47ac10b-58cc-4372-a567-0e02b2c3d000"
+            title:
+              type: string
+              example: "Web Development Workshop"
+            startDate:
+              type: string
+              format: date-time
+              example: "2025-06-01T09:00:00Z"
+            endDate:
+              type: string
+              format: date-time
+              example: "2025-06-01T17:00:00Z"
+            capacity:
+              type: integer
+              example: 150
+            category:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  example: "c47ac10b-58cc-4372-a567-0e02b2c3d000"
+                name:
+                  type: string
+                  example: "Technology"
+        participation:
+          type: object
+          properties:
+            total:
+              type: integer
+              example: 120
+            registered:
+              type: integer
+              example: 110
+            attended:
+              type: integer
+              example: 95
+            cancelled:
+              type: integer
+              example: 10
+            waitlisted:
+              type: integer
+              example: 15
+            registrationRate:
+              type: number
+              format: float
+              example: 0.8
+            attendanceRate:
+              type: number
+              format: float
+              example: 0.86
+            cancellationRate:
+              type: number
+              format: float
+              example: 0.09
+        registrationTimeline:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+                example: "2025-05-15"
+              count:
+                type: integer
+                example: 12
+        demographics:
+          type: object
+          properties:
+            newUsers:
+              type: integer
+              example: 25
+            returningUsers:
+              type: integer
+              example: 95
+            returningRate:
+              type: number
+              format: float
+              example: 0.79

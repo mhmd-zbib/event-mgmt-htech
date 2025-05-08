@@ -14,48 +14,51 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - in: query
-          name: page
+        - name: page
+          in: query
+          description: Page number for pagination
           schema:
             type: integer
             default: 1
-          description: Page number for pagination
-        - in: query
-          name: size
+        - name: size
+          in: query
+          description: Number of items per page
           schema:
             type: integer
             default: 10
-          description: Number of items per page
-        - in: query
-          name: sortBy
+        - name: sortBy
+          in: query
+          description: Field to sort by
           schema:
             type: string
             enum: [name, createdAt]
-            default: createdAt
-          description: Field to sort by
-        - in: query
-          name: sortOrder
+            default: name
+        - name: sortOrder
+          in: query
+          description: Sort order (ascending or descending)
           schema:
             type: string
             enum: [ASC, DESC, asc, desc]
-            default: DESC
-          description: Sort order (ascending or descending)
+            default: ASC
+        - name: search
+          in: query
+          description: Search categories by name or description
+          schema:
+            type: string
       responses:
         '200':
-          description: List of categories
+          description: List of categories retrieved successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  list:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Category'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
-                  sort:
-                    $ref: '#/components/schemas/Sort'
+                allOf:
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+                  - $ref: '#/components/schemas/PaginatedResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '500':
@@ -65,7 +68,7 @@ paths:
       tags:
         - Categories
       summary: Create a new category
-      description: Create a new event category (admin only)
+      description: Create a new category (admin only)
       security:
         - bearerAuth: []
       requestBody:
@@ -79,13 +82,10 @@ paths:
               properties:
                 name:
                   type: string
-                  minLength: 2
-                  maxLength: 50
                   example: "Technology"
                 description:
                   type: string
-                  maxLength: 500
-                  example: "Events related to technology and innovation"
+                  example: "Technology-related events and workshops"
       responses:
         '201':
           description: Category created successfully
@@ -96,7 +96,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Category created successfully
+                    example: "Category created successfully"
                   category:
                     $ref: '#/components/schemas/Category'
         '400':
@@ -109,6 +109,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '409':
+          description: Category name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Category with this name already exists"
+                statusCode: 409
+                timestamp: "2025-05-05T12:00:00.000Z"
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -117,20 +127,20 @@ paths:
       tags:
         - Categories
       summary: Get category by ID
-      description: Retrieve a specific category by its ID
+      description: Retrieve a specific category by ID
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
+          description: Category ID
           schema:
             type: string
             format: uuid
-          description: UUID of the category
       responses:
         '200':
-          description: Category details
+          description: Category retrieved successfully
           content:
             application/json:
               schema:
@@ -148,18 +158,18 @@ paths:
     put:
       tags:
         - Categories
-      summary: Update a category
-      description: Update an existing category (admin only)
+      summary: Update category
+      description: Update a specific category (admin only)
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
+          description: Category ID
           schema:
             type: string
             format: uuid
-          description: UUID of the category to update
       requestBody:
         required: true
         content:
@@ -169,13 +179,10 @@ paths:
               properties:
                 name:
                   type: string
-                  minLength: 2
-                  maxLength: 50
                   example: "Updated Technology"
                 description:
                   type: string
-                  maxLength: 500
-                  example: "Updated description for technology events"
+                  example: "Updated description for technology category"
       responses:
         '200':
           description: Category updated successfully
@@ -186,7 +193,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Category updated successfully
+                    example: "Category updated successfully"
                   category:
                     $ref: '#/components/schemas/Category'
         '400':
@@ -201,24 +208,34 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Category name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Category with this name already exists"
+                statusCode: 409
+                timestamp: "2025-05-05T12:00:00.000Z"
         '500':
           $ref: '#/components/responses/InternalServerError'
     
     delete:
       tags:
         - Categories
-      summary: Delete a category
-      description: Delete a category by ID (admin only)
+      summary: Delete category
+      description: Delete a specific category (admin only)
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
+          description: Category ID
           schema:
             type: string
             format: uuid
-          description: UUID of the category to delete
       responses:
         '200':
           description: Category deleted successfully
@@ -229,7 +246,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Category deleted successfully
+                    example: "Category deleted successfully"
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -240,6 +257,16 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Cannot delete category in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Cannot delete category that is associated with events"
+                statusCode: 409
+                timestamp: "2025-05-05T12:00:00.000Z"
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -247,61 +274,58 @@ paths:
     get:
       tags:
         - Categories
-        - Events
       summary: Get events by category
-      description: Retrieve a paginated list of events belonging to a specific category
+      description: Retrieve all events in a specific category
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
+          description: Category ID
           schema:
             type: string
             format: uuid
-          description: UUID of the category
-        - in: query
-          name: page
+        - name: page
+          in: query
+          description: Page number for pagination
           schema:
             type: integer
             default: 1
-          description: Page number for pagination
-        - in: query
-          name: size
+        - name: size
+          in: query
+          description: Number of items per page
           schema:
             type: integer
             default: 10
-          description: Number of items per page
-        - in: query
-          name: sortBy
+        - name: sortBy
+          in: query
+          description: Field to sort by
           schema:
             type: string
-            enum: [name, createdAt, startDate, endDate]
+            enum: [title, startDate, endDate, createdAt]
             default: startDate
-          description: Field to sort by
-        - in: query
-          name: sortOrder
+        - name: sortOrder
+          in: query
+          description: Sort order (ascending or descending)
           schema:
             type: string
             enum: [ASC, DESC, asc, desc]
             default: ASC
-          description: Sort order (ascending or descending)
       responses:
         '200':
-          description: List of events in the category
+          description: List of events in category retrieved successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  list:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Event'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
-                  sort:
-                    $ref: '#/components/schemas/Sort'
+                allOf:
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Event'
+                  - $ref: '#/components/schemas/PaginatedResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '404':
@@ -317,13 +341,13 @@ components:
         id:
           type: string
           format: uuid
-          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+          example: "c47ac10b-58cc-4372-a567-0e02b2c3d000"
         name:
           type: string
           example: "Technology"
         description:
           type: string
-          example: "Events related to technology and innovation"
+          example: "Technology-related events and workshops"
         createdAt:
           type: string
           format: date-time
@@ -332,35 +356,51 @@ components:
           type: string
           format: date-time
           example: "2025-05-05T10:30:00Z"
-        createdBy:
-          type: string
-          format: uuid
-          example: "a47ac10b-58cc-4372-a567-0e02b2c3d000"
-        creator:
-          $ref: '#/components/schemas/User'
+        eventCount:
+          type: integer
+          example: 15
+          description: Number of events in this category
     
-    Pagination:
+    PaginatedResponse:
       type: object
       properties:
-        totalItems:
-          type: integer
-          example: 50
-        totalPages:
-          type: integer
-          example: 5
-        currentPage:
-          type: integer
-          example: 1
-        pageSize:
-          type: integer
-          example: 10
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        pagination:
+          type: object
+          properties:
+            totalItems:
+              type: integer
+              example: 50
+            totalPages:
+              type: integer
+              example: 5
+            currentPage:
+              type: integer
+              example: 1
+            pageSize:
+              type: integer
+              example: 10
     
-    Sort:
+    Error:
       type: object
       properties:
-        field:
+        message:
           type: string
-          example: "createdAt"
-        order:
+        statusCode:
+          type: integer
+        timestamp:
           type: string
-          example: "DESC"
+          format: date-time
+    
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: string

@@ -1,0 +1,81 @@
+/**
+ * Custom CSS for Swagger UI
+ * Enhanced styling for export buttons and overall UI improvements
+ */
+
+/* Export links styling */
+.api-export-links {
+  margin: 15px 0;
+  padding: 12px 15px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.api-export-links span {
+  font-weight: bold;
+  margin-right: 15px;
+  color: #3b4151;
+}
+
+.api-export-links a {
+  display: inline-block;
+  margin: 5px;
+  text-decoration: none;
+  background-color: #4990e2;
+  color: white;
+  padding: 7px 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.api-export-links a:hover {
+  background-color: #357abf;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Postman-specific styling */
+.api-export-links a:first-of-type {
+  background-color: #ff6c37; /* Postman orange */
+}
+
+.api-export-links a:first-of-type:hover {
+  background-color: #e85a2d;
+}
+
+/* Additional Swagger UI improvements */
+.swagger-ui .opblock-tag-section {
+  margin-top: 20px;
+}
+
+.swagger-ui .opblock .opblock-summary-method {
+  font-weight: bold;
+}
+
+.swagger-ui .topbar {
+  display: none;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .api-export-links {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .api-export-links span {
+    margin-bottom: 8px;
+  }
+  
+  .api-export-links a {
+    width: 100%;
+    margin: 4px 0;
+    text-align: center;
+  }
+}

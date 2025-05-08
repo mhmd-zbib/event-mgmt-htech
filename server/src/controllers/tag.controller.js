@@ -1,6 +1,8 @@
 const tagService = require('../services/tag.service');
 const { formatMessageResponse } = require('../utils/response-formatter');
 const { createTagListResponseDto, createTagDetailResponseDto } = require('../dto/tag-response.dto');
+const { createTagRequestDto, updateTagRequestDto } = require('../dto/tag-request.dto');
+const { createEventTagRequestDto, createBulkEventTagsRequestDto } = require('../dto/event-tag-request.dto');
 const { formatItemResponse } = require('../utils/response-formatter');
 
 class TagController {
@@ -32,7 +34,8 @@ class TagController {
   async createTag(req, res, next) {
     try {
       const adminId = req.user.id;
-      const tag = await tagService.createTag(req.body, adminId);
+      const formattedData = createTagRequestDto(req.body);
+      const tag = await tagService.createTag(formattedData, adminId);
       const responseData = createTagDetailResponseDto(tag);
       res.status(201).json(responseData);
     } catch (error) {
@@ -44,7 +47,8 @@ class TagController {
     try {
       const { id } = req.params;
       const adminId = req.user.id;
-      const tag = await tagService.updateTag(id, req.body, adminId);
+      const formattedData = updateTagRequestDto(req.body);
+      const tag = await tagService.updateTag(id, formattedData, adminId);
       const responseData = createTagDetailResponseDto(tag);
       res.status(200).json(responseData);
     } catch (error) {
@@ -71,7 +75,8 @@ class TagController {
       const { tagIds } = req.body;
       const adminId = req.user.id;
       
-      await tagService.addTagsToEvent(eventId, tagIds, adminId);
+      const formattedData = createBulkEventTagsRequestDto(eventId, tagIds);
+      await tagService.addTagsToEvent(eventId, formattedData.map(item => item.tagId), adminId);
       
       // Create a response with separate message and link fields
       const responseData = {
