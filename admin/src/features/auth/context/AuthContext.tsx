@@ -1,156 +1,169 @@
 // filepath: /home/zbib/Development/projects/htech-assesment/admin/src/features/auth/context/AuthContext.tsx
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useReducer, useContext, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { LoginCredentials, User, ApiError } from '../types/auth';
+import type { User, AuthState } from '../types/auth';
 import { authService } from '../services/authService';
 
-// Define auth context types
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  isAuthenticating: boolean;
-  error: string | null;
-  login: (email: string, password: string) => Promise<any>;
-  logout: () => Promise<void>;
-}
+// Auth action types
+type AuthAction =
+  | { type: 'AUTH_INIT' }
+  | { type: 'AUTH_SUCCESS'; payload: User }
+  | { type: 'AUTH_FAILURE'; payload: string }
+  | { type: 'AUTH_LOGOUT' }
+  | { type: 'AUTH_RESET_ERROR' }
+  | { type: 'AUTH_START_REQUEST' }
+  | { type: 'AUTH_END_REQUEST' };
 
-// Create the auth context with default values
-const AuthContext = createContext<AuthContextType>({
+// Initial auth state
+const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
   isAuthenticating: false,
   error: null,
-  login: async () => {},
-  logout: async () => {},
-});
+};
 
-// Hook to use auth context
-export const useAuth = () => useContext(AuthContext);
+// Auth reducer
+const authReducer = (state: AuthState, action: AuthAction): AuthState => {
+  switch (action.type) {
+    case 'AUTH_INIT':
+      return { ...state, isLoading: true, error: null };
+    case 'AUTH_SUCCESS':
+      return {
+        ...state,
+        isAuthenticated: true,
+        isLoading: false,
+        isAuthenticating: false,
+        user: action.payload,
+        error: null,
+      };
+    case 'AUTH_FAILURE':
+      return {
+        ...state,
+        isAuthenticated: false,
+        isLoading: false,
+        isAuthenticating: false,
+        user: null,
+        error: action.payload,
+      };
+    case 'AUTH_LOGOUT':
+      return {
+        ...state,
+        isAuthenticated: false,
+        user: null,
+        error: null,
+      };
+    case 'AUTH_RESET_ERROR':
+      return { ...state, error: null };
+    case 'AUTH_START_REQUEST':
+      return { ...state, isAuthenticating: true, error: null };
+    case 'AUTH_END_REQUEST':
+      return { ...state, isAuthenticating: false };
+    default:
+      return state;
+  }
+};
+
+// Create auth context
+type AuthContextType = AuthState & {
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  resetError: () => void;
+};
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Auth Provider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(authReducer, initialState);
   const navigate = useNavigate();
 
-  // Check authentication status on initial load
+  // Check authentication status on mount
   useEffect(() => {
-    checkAuthStatus();
+    const checkAuth = async () => {
+      dispatch({ type: 'AUTH_INIT' });
+      try {
+        if (authService.isAuthenticated()) {
+          const userData = authService.getUserData();
+          if (userData) {
+            dispatch({ type: 'AUTH_SUCCESS', payload: userData });
+          } else {
+            dispatch({ type: 'AUTH_FAILURE', payload: 'User data not found' });
+          }
+        } else {
+          dispatch({ type: 'AUTH_FAILURE', payload: '' });
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        dispatch({ type: 'AUTH_FAILURE', payload: 'Authentication check failed' });
+      }
+    };
+
+    checkAuth();
   }, []);
 
-  /**
-   * Check if the user is authenticated
-   */
-  const checkAuthStatus = async () => {
-    setIsLoading(true);
+  // Login function
+  const login = useCallback(async (email: string, password: string) => {
+    dispatch({ type: 'AUTH_START_REQUEST' });
     try {
-      const isAuth = authService.isAuthenticated();
-      setIsAuthenticated(isAuth);
-      
-      if (isAuth) {
-        // Load user data from localStorage if available
-        const storedUser = localStorage.getItem('userData');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      }
-    } catch (err) {
-      console.error('Auth check failed:', err);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * Login with email and password
-   */
-  const login = async (email: string, password: string) => {
-    setIsAuthenticating(true);
-    setError(null);
-    
-    try {
-      console.log('Attempting login with:', { email, password });
       const response = await authService.login({ email, password });
-      console.log('Login response received:', response);
-      console.log('Token from response:', response.token);
-      
-      // Store tokens in sessionStorage (cleared when browser is closed)
-      sessionStorage.setItem('accessToken', response.token.accessToken);
-      sessionStorage.setItem('refreshToken', response.token.refreshToken);
-      sessionStorage.setItem('tokenExpiry', (Date.now() + response.token.expiresIn * 1000).toString());
-      
-      // Log the stored values to confirm
-      console.log('Stored in sessionStorage:', {
-        accessToken: sessionStorage.getItem('accessToken'),
-        refreshToken: sessionStorage.getItem('refreshToken'),
-        tokenExpiry: sessionStorage.getItem('tokenExpiry')
-      });
-      
-      // Store user data in localStorage for persistence
-      localStorage.setItem('userData', JSON.stringify(response.user));
-      
-      // Update state
-      setUser(response.user);
-      setIsAuthenticated(true);
-      
-      // Navigate to dashboard
-      navigate('/admin/dashboard');
-      
-      return response;
-    } catch (err: any) {
-      console.error('Login error:', err);
-      const apiError = err as ApiError;
-      setError(apiError.message);
-      throw apiError;
-    } finally {
-      setIsAuthenticating(false);
+      dispatch({ type: 'AUTH_SUCCESS', payload: response.user });
+      // Navigation is now handled in the useAuthHook
+    } catch (error: any) {
+      dispatch({ type: 'AUTH_FAILURE', payload: error.message || 'Login failed' });
+      throw error;
     }
-  };
+  }, []);
 
-  /**
-   * Logout the current user
-   */
-  const logout = async () => {
+  // Logout function
+  const logout = useCallback(async () => {
     try {
+      // Clear all auth data from localStorage
       await authService.logout();
       
-      // Clear all stored authentication data
-      sessionStorage.removeItem('accessToken');
-      sessionStorage.removeItem('refreshToken');
-      sessionStorage.removeItem('tokenExpiry');
-      localStorage.removeItem('userData');
+      // Reset application state
+      dispatch({ type: 'AUTH_LOGOUT' });
       
-      // Update state
-      setUser(null);
-      setIsAuthenticated(false);
+      // Clear any in-memory cache or state that might contain user data
+      // This ensures no user data remains in the application
+      window.sessionStorage.clear();
       
-      // Navigate to login
-      navigate('/login');
-      return Promise.resolve();
-    } catch (err) {
-      console.error('Logout failed:', err);
-      return Promise.resolve();
+      // Redirect to login page
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Even if logout fails, we should still clear local state and redirect
+      dispatch({ type: 'AUTH_LOGOUT' });
+      navigate('/login', { replace: true });
     }
+  }, [navigate]);
+
+  // Reset error function
+  const resetError = useCallback(() => {
+    dispatch({ type: 'AUTH_RESET_ERROR' });
+  }, []);
+
+  // Provide auth context value
+  const contextValue: AuthContextType = {
+    ...state,
+    login,
+    logout,
+    resetError,
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user,
-      isAuthenticated, 
-      isLoading, 
-      isAuthenticating, 
-      error,
-      login, 
-      logout 
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
+};
+
+// Custom hook to use auth context
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

@@ -3,11 +3,26 @@ import type { ReactNode } from 'react';
 import { BrowserRouter, Routes as RouterRoutes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './features/auth/context/AuthContext';
 
-// Lazy load page components for better performance
-const LandingPage = lazy(() => import('./features/landing/LandingPage').then(module => ({ default: module.LandingPage })));
-const LoginPage = lazy(() => import('./features/auth/LoginPage').then(module => ({ default: module.LoginPage })));
-const AdminLayout = lazy(() => import('./features/dashboard/AdminLayout').then(module => ({ default: module.AdminLayout })));
-const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage').then(module => ({ default: module.DashboardPage })));
+// Lazy load page components from the pages directory
+const HeroPage = lazy(() => import('./pages/landing/HeroPage'));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const AdminLayout = lazy(() => import('./components/layout/AdminLayout').then(module => ({ default: module.AdminLayout })));
+
+// Events pages
+const EventsListPage = lazy(() => import('./pages/events/EventsListPage'));
+const EventDetailPage = lazy(() => import('./pages/events/EventDetailPage'));
+const EventCreatePage = lazy(() => import('./pages/events/EventCreatePage'));
+const EventEditPage = lazy(() => import('./pages/events/EventEditPage'));
+
+// Categories pages
+const CategoriesListPage = lazy(() => import('./pages/categories/CategoriesListPage'));
+const CategoryCreatePage = lazy(() => import('./pages/categories/CategoryCreatePage'));
+const CategoryEditPage = lazy(() => import('./pages/categories/CategoryEditPage'));
+
+// Tags pages
+const TagsListPage = lazy(() => import('./pages/tags/TagsListPage'));
+const TagCreatePage = lazy(() => import('./pages/tags/TagCreatePage'));
+const TagEditPage = lazy(() => import('./pages/tags/TagEditPage'));
 
 // Loading component for suspense fallback
 const PageLoader = () => (
@@ -34,6 +49,21 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+// Public route component that redirects to events if already authenticated
+function PublicRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <PageLoader />;
+  }
+  
+  if (isAuthenticated) {
+    return <Navigate to="/events" replace />;
+  }
+  
+  return <>{children}</>;
+}
+
 // Main Routes component
 export function Routes() {
   return (
@@ -42,22 +72,40 @@ export function Routes() {
         <Suspense fallback={<PageLoader />}>
           <RouterRoutes>
             {/* Public routes */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<HeroPage />} />
+            <Route path="/login" element={
+              <PublicRoute>
+                <LoginPage />
+              </PublicRoute>
+            } />
             
-            {/* Protected Admin routes */}
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="/admin/dashboard" replace />} />
-              <Route path="dashboard" element={<DashboardPage />} />
-              {/* Add more admin routes here as needed */}
+            {/* Protected routes */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            }>
+              {/* Events routes */}
+              <Route path="events" element={<EventsListPage />} />
+              <Route path="events/create" element={<EventCreatePage />} />
+              <Route path="events/:id" element={<EventDetailPage />} />
+              <Route path="events/:id/edit" element={<EventEditPage />} />
+              
+              {/* Categories routes */}
+              <Route path="categories" element={<CategoriesListPage />} />
+              <Route path="categories/create" element={<CategoryCreatePage />} />
+              <Route path="categories/:id/edit" element={<CategoryEditPage />} />
+              
+              {/* Tags routes */}
+              <Route path="tags" element={<TagsListPage />} />
+              <Route path="tags/create" element={<TagCreatePage />} />
+              <Route path="tags/:id/edit" element={<TagEditPage />} />
             </Route>
+            
+            {/* Redirect /admin paths to /events for backward compatibility */}
+            <Route path="/admin" element={<Navigate to="/events" replace />} />
+            <Route path="/admin/events" element={<Navigate to="/events" replace />} />
+            <Route path="/admin/events/:id" element={<Navigate to="/events/:id" replace />} />
             
             {/* 404 route */}
             <Route path="*" element={<Navigate to="/" replace />} />

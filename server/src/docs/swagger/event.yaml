@@ -603,9 +603,10 @@ components:
         capacity:
           type: integer
           example: 50
-        registrationCount:
+        participantsCount:
           type: integer
           example: 35
+          description: "Number of participants who registered for the event"
         isFeatured:
           type: boolean
           example: false
@@ -659,9 +660,10 @@ components:
         capacity:
           type: integer
           example: 50
-        registrationCount:
+        participantsCount:
           type: integer
           example: 35
+          description: "Number of participants who registered for the event"
         availableSeats:
           type: integer
           example: 15

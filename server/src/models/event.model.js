@@ -42,6 +42,25 @@ const Event = sequelize.define('Event', {
       model: 'Users',
       key: 'id'
     }
+  },
+  capacity: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: null
+  },
+  isFeatured: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
+  },
+  imageUrl: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  participantsCount: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    allowNull: false
   }
 }, {
   timestamps: true,

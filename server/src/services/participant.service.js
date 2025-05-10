@@ -4,125 +4,179 @@ const Event = require('../models/event.model');
 const User = require('../models/user.model');
 const { log } = require('winston');
 const { processPaginationParams, createPaginationMeta, paginatedQuery } = require('../utils/pagination');
+const sequelize = require('../config/database');
 
 class ParticipantService {
 
   async registerForEvent(eventId, userId, data = {}) {
-    const event = await Event.findByPk(eventId);
-    if (!event) {
-      throw new NotFoundError('Event not found');
-    }
-
-    // Verify the user exists
-    const user = await User.findByPk(userId);
-    if (!user) {
-      throw new NotFoundError('User not found');
-    }
+    // Use a transaction to ensure data consistency
+    const transaction = await sequelize.transaction();
     
-    // Don't allow admins to participate
-    if (user.role === 'admin') {
-      throw new ForbiddenError('Administrators cannot register for events');
+    try {
+      const event = await Event.findByPk(eventId, { transaction });
+      if (!event) {
+        throw new NotFoundError('Event not found');
+      }
+
+      // Verify the user exists
+      const user = await User.findByPk(userId, { transaction });
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+      
+      // Don't allow admins to participate
+      if (user.role === 'admin') {
+        throw new ForbiddenError('Administrators cannot register for events');
+      }
+      
+      // Check if the event has already passed
+      if (new Date(event.endDate) < new Date()) {
+        throw new BadRequestError('Cannot register for an event that has already ended');
+      }
+
+      // Check if user is already registered
+      const existingParticipant = await Participant.findOne({
+        where: { eventId, userId },
+        transaction
+      });
+
+      if (existingParticipant) {
+        throw new BadRequestError('User is already registered for this event');
+      }
+
+      // Check event capacity if it's set
+      if (event.capacity !== null && event.participantsCount >= event.capacity) {
+        throw new BadRequestError('This event has reached its maximum capacity');
+      }
+
+      // Create the participant record
+      const participant = await Participant.create({
+        eventId,
+        userId,
+        notes: data.notes || null,
+        status: 'registered',
+        registrationDate: new Date()
+      }, { transaction });
+      
+      // Increment the participantsCount
+      await event.increment('participantsCount', { transaction });
+      
+      // Commit the transaction
+      await transaction.commit();
+      
+      // Return with user details
+      const participantWithDetails = await Participant.findByPk(participant.id, {
+        include: [
+          { model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'email'] }
+        ]
+      });
+
+      return participantWithDetails;
+    } catch (error) {
+      // If an error occurs, rollback the transaction
+      await transaction.rollback();
+      throw error;
     }
-    
-    // Check if the event has already passed
-    if (new Date(event.endDate) < new Date()) {
-      throw new BadRequestError('Cannot register for an event that has already ended');
-    }
-
-    // Check if user is already registered
-    const existingParticipant = await Participant.findOne({
-      where: { eventId, userId }
-    });
-
-    if (existingParticipant) {
-      throw new BadRequestError('User is already registered for this event');
-    }
-
-    // Create the participant record
-    const participant = await Participant.create({
-      eventId,
-      userId,
-      notes: data.notes || null,
-      status: 'registered',
-      registrationDate: new Date()
-    });
-    
-    // Return with user details
-    const participantWithDetails = await Participant.findByPk(participant.id, {
-      include: [
-        { model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'email'] }
-      ]
-    });
-
-    return participantWithDetails;
   }
 
   async exitEvent(eventId, userId) {
-    // Verify the event exists
-    const event = await Event.findByPk(eventId);
-    if (!event) {
-      throw new NotFoundError('Event not found');
-    }
-
-    // Find the participant record
-    const participant = await Participant.findOne({
-      where: {
-        eventId,
-        userId
+    // Use a transaction to ensure data consistency
+    const transaction = await sequelize.transaction();
+    
+    try {
+      // Verify the event exists
+      const event = await Event.findByPk(eventId, { transaction });
+      if (!event) {
+        throw new NotFoundError('Event not found');
       }
-    });
 
-    if (!participant) {
-      throw new NotFoundError('You are not registered for this event');
+      // Find the participant record
+      const participant = await Participant.findOne({
+        where: {
+          eventId,
+          userId
+        },
+        transaction
+      });
+
+      if (!participant) {
+        throw new NotFoundError('You are not registered for this event');
+      }
+
+      // Store participant data before deletion for logging
+      const participantData = participant.toJSON();
+
+      // Delete the participant record
+      await participant.destroy({ transaction });
+      
+      // Decrement the participantsCount
+      await event.decrement('participantsCount', { transaction });
+      
+      // Commit the transaction
+      await transaction.commit();
+
+      return {
+        message: 'You have successfully unregistered from this event',
+        participant: participantData
+      };
+    } catch (error) {
+      // If an error occurs, rollback the transaction
+      await transaction.rollback();
+      throw error;
     }
-
-    // Store participant data before deletion for logging
-    const participantData = participant.toJSON();
-
-    // Delete the participant record
-    await participant.destroy();
-
-    return {
-      message: 'You have successfully unregistered from this event',
-      participant: participantData
-    };
   }
 
   async removeParticipant(eventId, userId, adminId) {
-    // Verify the event exists
-    const event = await Event.findByPk(eventId);
-    if (!event) {
-      throw new NotFoundError('Event not found');
-    }
-
-    // Verify the user exists
-    const user = await User.findByPk(userId);
-    if (!user) {
-      throw new NotFoundError('User not found');
-    }
-
-    // Find the participant record
-    const participant = await Participant.findOne({
-      where: {
-        eventId,
-        userId
+    // Use a transaction to ensure data consistency
+    const transaction = await sequelize.transaction();
+    
+    try {
+      // Verify the event exists
+      const event = await Event.findByPk(eventId, { transaction });
+      if (!event) {
+        throw new NotFoundError('Event not found');
       }
-    });
 
-    if (!participant) {
-      throw new NotFoundError('User is not registered for this event');
+      // Verify the user exists
+      const user = await User.findByPk(userId, { transaction });
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      // Find the participant record
+      const participant = await Participant.findOne({
+        where: {
+          eventId,
+          userId
+        },
+        transaction
+      });
+
+      if (!participant) {
+        throw new NotFoundError('User is not registered for this event');
+      }
+
+      // Store participant data before deletion for logging/response
+      const participantData = participant.toJSON();
+
+      // Delete the participant record
+      await participant.destroy({ transaction });
+      
+      // Decrement the participantsCount
+      await event.decrement('participantsCount', { transaction });
+      
+      // Commit the transaction
+      await transaction.commit();
+
+      return {
+        message: 'Participant removed successfully',
+        participant: participantData
+      };
+    } catch (error) {
+      // If an error occurs, rollback the transaction
+      await transaction.rollback();
+      throw error;
     }
-
-    // Store participant data before deletion for logging/response
-    const participantData = participant.toJSON();
-
-    // Delete the participant record
-    await participant.destroy();
-
-    return {
-      message: 'Participant removed successfully',
-      participant: participantData
-    };
   }
 
   async getEventParticipants(eventId, options = {}) {

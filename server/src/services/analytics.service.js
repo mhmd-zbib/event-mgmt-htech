@@ -1,24 +1,24 @@
-const { Event } = require('../models/event.model');
-const { Participant } = require('../models/participant.model');
-const { User } = require('../models/user.model');
-const { Category } = require('../models/category.model');
-const { Tag } = require('../models/tag.model');
+const Event = require('../models/event.model');
+const Participant = require('../models/participant.model');
+const User = require('../models/user.model');
+const Category = require('../models/category.model');
+const Tag = require('../models/tag.model');
 const handleDatabaseError = require('../errors/DatabaseError');
 const { InternalServerError, NotFoundError } = require('../errors/HttpErrors');
-const { sequelize } = require('../config/database');
+const sequelize = require('../config/database');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
 
 class AnalyticsService {
   async getDashboardOverview() {
     try {
+      // Get base counts in parallel
       const [
         totalEvents,
         totalParticipants,
         totalUsers,
         totalCategories,
-        recentEvents,
-        participantCounts
+        recentEvents
       ] = await Promise.all([
         Event.count(),
         Participant.count(),
@@ -28,8 +28,13 @@ class AnalyticsService {
           limit: 5,
           order: [['createdAt', 'DESC']],
           attributes: ['id', 'title', 'startDate', 'location']
-        }),
-        Participant.findAll({
+        })
+      ]);
+      
+      // Get participant counts separately with better error handling
+      let topEvents = [];
+      try {
+        const participantCounts = await Participant.findAll({
           attributes: [
             'eventId',
             [sequelize.fn('COUNT', sequelize.col('id')), 'count']
@@ -37,23 +42,32 @@ class AnalyticsService {
           group: ['eventId'],
           limit: 10,
           order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']]
-        })
-      ]);
-
-      const eventIds = participantCounts.map(p => p.eventId);
-      const popularEvents = await Event.findAll({
-        where: { id: eventIds },
-        attributes: ['id', 'title']
-      });
-
-      const topEvents = participantCounts.map(pc => {
-        const event = popularEvents.find(e => e.id === pc.eventId);
-        return {
-          eventId: pc.eventId,
-          eventTitle: event ? event.title : 'Unknown Event',
-          participantCount: pc.get('count')
-        };
-      });
+        });
+        
+        if (participantCounts && participantCounts.length > 0) {
+          const eventIds = participantCounts.map(p => p.eventId);
+          
+          // Only query if we have event IDs
+          if (eventIds.length > 0) {
+            const popularEvents = await Event.findAll({
+              where: { id: eventIds },
+              attributes: ['id', 'title']
+            });
+            
+            topEvents = participantCounts.map(pc => {
+              const event = popularEvents.find(e => e.id === pc.eventId);
+              return {
+                eventId: pc.eventId,
+                eventTitle: event ? event.title : 'Unknown Event',
+                participantCount: parseInt(pc.get('count'), 10)
+              };
+            });
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to fetch participant counts', { error });
+        // Continue with empty top events rather than failing completely
+      }
 
       return {
         counts: {
@@ -93,58 +107,73 @@ class AnalyticsService {
         }
       }
       
-      // Get event stats by category
-      const categoryStats = await Event.findAll({
-        ...query,
-        attributes: [
-          'categoryId',
-          [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-        ],
-        include: [{
-          model: Category,
-          as: 'category',
-          attributes: ['id', 'name']
-        }],
-        group: ['categoryId', 'category.id'],
-        order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']]
-      });
-      
-      // Format the results
-      const formattedCategoryStats = categoryStats.map(stat => ({
-        categoryId: stat.categoryId,
-        categoryName: stat.category ? stat.category.name : 'Uncategorized',
-        count: parseInt(stat.get('count'), 10)
-      }));
+      // Get event stats by category with better error handling
+      let formattedCategoryStats = [];
+      try {
+        const categoryStats = await Event.findAll({
+          ...query,
+          attributes: [
+            'categoryId',
+            [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+          ],
+          include: [{
+            model: Category,
+            as: 'category',
+            attributes: ['id', 'name'],
+            required: false
+          }],
+          group: ['categoryId', 'category.id', 'category.name'],
+          order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']]
+        });
+        
+        formattedCategoryStats = categoryStats.map(stat => ({
+          categoryId: stat.categoryId,
+          categoryName: stat.category ? stat.category.name : 'Uncategorized',
+          count: parseInt(stat.get('count'), 10)
+        }));
+      } catch (error) {
+        logger.error('Failed to fetch category stats', { error });
+        // Continue with empty stats instead of failing completely
+      }
       
       // Get total count based on the same filter
       const totalEvents = await Event.count(query);
       
       // Get upcoming and past events
       const now = new Date();
-      const upcomingEvents = await Event.count({
-        ...query,
-        where: {
-          ...query.where,
-          startDate: { [Op.gt]: now }
-        }
-      });
+      let upcomingEvents = 0, pastEvents = 0, ongoingEvents = 0;
       
-      const pastEvents = await Event.count({
-        ...query,
-        where: {
-          ...query.where,
-          endDate: { [Op.lt]: now }
-        }
-      });
-
-      const ongoingEvents = await Event.count({
-        ...query,
-        where: {
-          ...query.where,
-          startDate: { [Op.lte]: now },
-          endDate: { [Op.gte]: now }
-        }
-      });
+      try {
+        [upcomingEvents, pastEvents, ongoingEvents] = await Promise.all([
+          Event.count({
+            ...query,
+            where: {
+              ...query.where,
+              startDate: { [Op.gt]: now }
+            }
+          }),
+          
+          Event.count({
+            ...query,
+            where: {
+              ...query.where,
+              endDate: { [Op.lt]: now }
+            }
+          }),
+          
+          Event.count({
+            ...query,
+            where: {
+              ...query.where,
+              startDate: { [Op.lte]: now },
+              endDate: { [Op.gte]: now }
+            }
+          })
+        ]);
+      } catch (error) {
+        logger.error('Failed to fetch event counts', { error });
+        // Continue with zeroes instead of failing completely
+      }
       
       return {
         categoryStats: formattedCategoryStats,

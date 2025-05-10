@@ -8,15 +8,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { ShieldCheck, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuth } from "../context/AuthContext";
+import { useAuthHook } from "../hooks";
 
-// Default credentials for development/testing
-const DEFAULT_CREDENTIALS = {
-  email: "admin@example.com",
-  password: "Admin123!"
-};
+// Default credentials for testing
+const DEFAULT_EMAIL = "admin@example.com";
+const DEFAULT_PASSWORD = "Admin123!";
 
-// Validation schema using zod
+// Validation schema
 const loginSchema = z.object({
   email: z.string().email("Invalid email format"),
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -25,7 +23,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
-  const { login, isAuthenticating, error: authError } = useAuth();
+  const { handleLogin, isAuthenticating, error: authError } = useAuthHook();
   const [formError, setFormError] = useState<string | null>(null);
 
   const {
@@ -35,23 +33,22 @@ export function LoginForm() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: DEFAULT_CREDENTIALS.email,
+      email: DEFAULT_EMAIL,
       password: "",
     }
   });
 
   const onSubmit = async (data: LoginFormValues) => {
-    try {
-      setFormError(null);
-      await login(data.email, data.password);
-    } catch (error: any) {
-      setFormError(error.message);
-      console.error("Login error:", error);
+    setFormError(null);
+    const success = await handleLogin(data.email, data.password);
+    
+    if (!success && !authError) {
+      setFormError("Login failed. Please try again.");
     }
   };
 
   return (
-    <Card className="max-w-md w-full border-border shadow-lg">
+    <Card className="max-w-md w-full">
       <CardHeader className="space-y-1">
         <div className="flex items-center gap-2 mb-2">
           <ShieldCheck className="h-4 w-4 text-primary" />
@@ -80,10 +77,9 @@ export function LoginForm() {
             <Input
               id="email"
               type="email"
-              placeholder={DEFAULT_CREDENTIALS.email}
+              placeholder="Enter your email"
               {...register("email")}
-              className={`border-border ${errors.email ? "border-destructive" : ""}`}
-              aria-invalid={!!errors.email}
+              className={errors.email ? "border-destructive" : ""}
               disabled={isAuthenticating}
             />
             {errors.email && (
@@ -100,8 +96,7 @@ export function LoginForm() {
               type="password"
               placeholder="Enter your password"
               {...register("password")}
-              className={`border-border ${errors.password ? "border-destructive" : ""}`}
-              aria-invalid={!!errors.password}
+              className={errors.password ? "border-destructive" : ""}
               disabled={isAuthenticating}
             />
             {errors.password && (
@@ -114,13 +109,13 @@ export function LoginForm() {
               <ShieldCheck className="h-4 w-4 text-primary mt-0.5" />
               <div>
                 <p className="text-xs text-muted-foreground">
-                  For assessment purposes, use:
+                  For testing, use:
                 </p>
                 <p className="text-xs mt-1">
-                  Email: <span className="font-medium">{DEFAULT_CREDENTIALS.email}</span>
+                  Email: <span className="font-medium">{DEFAULT_EMAIL}</span>
                 </p>
                 <p className="text-xs">
-                  Password: <span className="font-medium">{DEFAULT_CREDENTIALS.password}</span>
+                  Password: <span className="font-medium">{DEFAULT_PASSWORD}</span>
                 </p>
               </div>
             </div>

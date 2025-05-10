@@ -17,6 +17,8 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   lastLogin: string;
+  role?: string;
+  avatar?: string;
 }
 
 /**
@@ -26,6 +28,18 @@ export interface Token {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
+  tokenType?: string;
+}
+
+/**
+ * Auth state interface
+ */
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  isAuthenticating: boolean;
+  error: string | null;
 }
 
 /**
